@@ -10,6 +10,7 @@
 #include <AP_Common.h>
 #include <AP_Math.h>        // ArduPilot Mega Vector/Matrix math Library
 #include <RC_Channel.h>     // RC Channel Library
+#include <Filter.h>         // Filter Library
 #include "AP_Motors.h"
 
 // maximum number of swashplate servos
@@ -190,6 +191,9 @@ public:
     // get_phase_angle - returns phase angle
     int16_t get_phase_angle() const { return _phase_angle; }
 
+    // set_phase_angle - sets phase angle
+    void set_phase_angle(const int16_t v) { _phase_angle.set(v); }
+
     // var_info for holding Parameter information
     static const struct AP_Param::GroupInfo var_info[];
     
@@ -203,6 +207,18 @@ public:
     // get_motor_mask - returns a bitmask of which outputs are being used for motors or servos (1 means being used)
     //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
     virtual uint16_t    get_motor_mask();
+
+    // Do cross coupling compensation for low rpm helis
+    void cccomp();
+
+    // set cccomp dynamic phase angle
+    void cccomp_phang(const int16_t v) { _cccomp_phang.set(v); }
+
+    // set cccomp d gain
+    void cccomp_kd(const float v) { _cccomp_kd.set(v); }
+
+    // set cccomp roll/pitch ratio
+    void cccomp_rp_rat(const float v) { _cccomp_rp_rat.set(v); }
 
 protected:
 
@@ -243,6 +259,9 @@ private:
     // write_aux - outputs pwm onto output aux channel (ch7). servo_out parameter is of the range 0 ~ 1000
     void write_aux(int16_t servo_out);
 
+    // cross coupling compensation smoothing filter
+    LowPassFilterFloat cccomp_filter;
+
     // external objects we depend upon
     RC_Channel&     _servo_aux;                 // output to ext gyro gain and tail direct drive esc (ch7)
     RC_Channel&     _servo_rsc;                 // output to main rotor esc (ch8)
@@ -280,6 +299,11 @@ private:
     AP_Int8         _flybar_mode;               // Flybar present or not.  Affects attitude controller used during ACRO flight mode
     AP_Int16        _land_collective_min;       // Minimum collective when landed or landing
     AP_Int16        _direct_drive_tailspeed;    // Direct Drive VarPitch Tail ESC speed (0 ~ 1000)
+    AP_Int8         _cccomp_enabled;            // Enable cross-coupling compensation
+    AP_Int16        _cccomp_phang;              // Cross-coupling compensation unloaded phase angle
+    AP_Float        _cccomp_kd;                 // Cross-coupling compensation D gain
+    AP_Float        _cccomp_rp_rat;             // Cross-coupling Roll to Pitch ratio x1000
+    AP_Float        _cccomp_lpf_hz;             // Cross-coupling Low-Pass filter
 
     // internal variables
     float           _rollFactor[AP_MOTORS_HELI_NUM_SWASHPLATE_SERVOS];

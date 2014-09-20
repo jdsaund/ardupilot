@@ -206,6 +206,42 @@ const AP_Param::GroupInfo AP_MotorsHeli::var_info[] PROGMEM = {
     // @User: Standard
     AP_GROUPINFO("TAIL_SPEED", 24, AP_MotorsHeli,  _direct_drive_tailspeed, AP_MOTOR_HELI_DDTAIL_DEFAULT),
 
+    // @Param: CCCOMP_ENABLED
+    // @DisplayName: Enable cross-coupling compensation
+    // @Description: Enable cross-coupling compensation
+    // @Values: 0:Disabled,1:Enabled
+    // @User: Advanced
+    AP_GROUPINFO("CCCOMP_ENABLED",  25, AP_MotorsHeli, _cccomp_enabled, 0),
+
+    // @Param: CCCOMP_PHANG
+    // @DisplayName: Cross-coupling compensation dynamic phase angle
+    // @Description: Corrects for phase angle differences due to rotor head dynamics
+    // @Range: -90 90
+    // @User: Advanced
+    AP_GROUPINFO("CCCOMP_PHANG", 26, AP_MotorsHeli, _cccomp_phang, 0),
+
+    // @Param: CCCOMP_KD
+    // @DisplayName: Cross-coupling compensation D gain
+    // @Description: This accounts for transients during flexing of the blades, dampers etc
+    // @Range: 0 1
+    // @User: Advanced
+    AP_GROUPINFO("CCCOMP_KD", 27, AP_MotorsHeli, _cccomp_kd, 0.0f),
+
+    // @Param: CCCOMP_RP_RAT
+    // @DisplayName: Cross-coupling Roll to Pitch ratio
+    // @Description: Based on moment of inertia for pitch and roll axes. A value of <1 gives the roll axis less compensation and vice versa.
+    // @Range: 0 1
+    // @User: Advanced
+    AP_GROUPINFO("CCCOMP_RP_RAT", 28, AP_MotorsHeli, _cccomp_rp_rat, 0.5f),
+
+    // @Param: CCCOMP_LPF_HZ
+    // @DisplayName: Cross-coupling low pass filter
+    // @Description: Cross-coupling low pass filter
+    // @Units: HZ
+    // @Range: 0 5
+    // @User: Advanced
+    AP_GROUPINFO("CCCOMP_LPF_HZ", 29, AP_MotorsHeli, _cccomp_lpf_hz, 2.0f),
+
     AP_GROUPEND
 };
 
@@ -224,6 +260,11 @@ void AP_MotorsHeli::Init()
 
     // initialise some scalers
     recalc_scalers();
+
+    // initialise cross coupling compensation smoothing filter
+    if (_cccomp_enabled == 1) {
+            cccomp_filter.set_cutoff_frequency(_dt, _cccomp_lpf_hz);
+    }
 
     // initialise swash plate
     init_swash();
@@ -390,6 +431,10 @@ void AP_MotorsHeli::output_armed()
     _rc_pitch.calc_pwm();
     _rc_throttle.calc_pwm();
     _rc_yaw.calc_pwm();
+
+    if (_cccomp_enabled == 1) {
+        cccomp();
+    }
 
     move_swash(_rc_roll.servo_out, _rc_pitch.servo_out, _rc_throttle.servo_out, _rc_yaw.servo_out);
 
@@ -805,4 +850,38 @@ void AP_MotorsHeli::set_delta_phase_angle(int16_t angle)
     angle = constrain_int16(angle, -90, 90);
     _delta_phase_angle = angle;
     calculate_roll_pitch_collective_factors();
+}
+
+void AP_MotorsHeli::cccomp()
+{
+    // Do cross-coupling compensation for low rpm helis. Used on low head-speed helicopters
+    // to cancel out pitch/roll cross-coupling induced instability.
+    // Credit: Jolyon Saunders
+    // Note: This is not widely tested at this time.  Will not be used by default yet
+
+    _rc_roll.calc_pwm();
+    _rc_pitch.calc_pwm();
+
+    static int32_t last_roll = 0;
+    static int32_t last_pitch = 0;
+    int32_t current_roll = _rc_roll.servo_out;
+    int32_t current_pitch = _rc_pitch.servo_out;
+    int16_t theta;
+    float d_term;
+    Vector2f vector;
+
+    // begin d term calcs
+    vector.x = current_roll - last_roll;
+    vector.x = vector.x * _cccomp_rp_rat;
+    vector.y = current_pitch - last_pitch;
+
+    d_term = _cccomp_kd * cccomp_filter.apply (vector.length());
+
+    theta = d_term;
+    theta = constrain_int16(theta, _phase_angle, _cccomp_phang);
+    set_delta_phase_angle (theta);
+
+    // make current outputs old, for next iteration
+    last_roll  = current_roll;
+    last_pitch = current_pitch;
 }

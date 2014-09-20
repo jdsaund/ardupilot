@@ -151,6 +151,10 @@
 #define CH6_RATE_PITCH_FF               52  // body frame pitch rate controller FF term
 #define CH6_RATE_ROLL_FF                53  // body frame roll rate controller FF term
 #define CH6_RATE_YAW_FF                 54  // body frame yaw rate controller FF term
+#define CH6_H_PHANG_CENT                55  // helicopter static rotor phase angle in centi-degrees
+#define CH6_H_CC_PHANG_CENT             56  // helicopter dynamic phase angle in centi-degrees
+#define CH6_H_CC_KD                     58  // Cross-coupling compensation D gain
+#define CH6_H_CC_RP_RAT                 59  // Cross-coupling Roll to Pitch ratio
 
 // Acro Trainer types
 #define ACRO_TRAINER_DISABLED   0

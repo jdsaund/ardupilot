@@ -1534,7 +1534,23 @@ static void tuning(){
         
     case CH6_RATE_YAW_FF:
         g.pid_rate_yaw.ff(tuning_value);
-        break;        
+        break;
+
+    case CH6_H_PHANG_CENT:
+        motors.set_phase_angle(tuning_value*100);
+        break;
+
+    case CH6_H_CC_PHANG_CENT:
+        motors.cccomp_phang(tuning_value*100);
+        break;
+
+    case CH6_H_CC_KD:
+        motors.cccomp_kd(tuning_value);
+        break;
+
+    case CH6_H_CC_RP_RAT:
+        motors.cccomp_rp_rat(tuning_value);
+        break;
 #endif
 
     case CH6_OPTFLOW_KP:
