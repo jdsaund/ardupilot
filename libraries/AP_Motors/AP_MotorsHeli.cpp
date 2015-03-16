@@ -231,6 +231,15 @@ void AP_MotorsHeli::Init()
     // disable channels 7 and 8 from being used by RC_Channel_aux
     RC_Channel_aux::disable_aux_channel(_motor_to_channel_map[AP_MOTORS_HELI_AUX]);
     RC_Channel_aux::disable_aux_channel(_motor_to_channel_map[AP_MOTORS_HELI_RSC]);
+
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+        // init aux motors
+        _heliflags.thrust_control = true;
+        _thrust_idx = RC_Channel_aux::k_motor_thrust;
+
+        // check which servos have been assigned
+        check_servo_map();
+    #endif
 }
 
 // set update rate to motors - a value in hertz
@@ -395,6 +404,19 @@ void AP_MotorsHeli::output_armed()
 
     // update rotor and direct drive esc speeds
     rsc_control();
+
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+
+        // check servo map every three seconds to allow users to modify parameters
+        uint32_t now = hal.scheduler->millis();
+        if (now - _last_check_servo_map_ms > 3000) {
+            check_servo_map();
+            _last_check_servo_map_ms = now;
+
+        // write the results to the servos
+        move_servo(_thrust_idx, _ext_gyro_gain);
+    #endif
+    }
 }
 
 // output_disarmed - sends commands to the motors
@@ -806,3 +828,23 @@ void AP_MotorsHeli::set_delta_phase_angle(int16_t angle)
     _delta_phase_angle = angle;
     calculate_roll_pitch_collective_factors();
 }
+
+#if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+// check_servo_map - detects which axis we control using the functions assigned to the servos in the RC_Channel_aux
+//  should be called periodically (i.e. 1hz or less)
+void AP_MotorsHeli::check_servo_map()
+{
+    _heliflags.thrust_control = RC_Channel_aux::function_assigned(_thrust_idx);
+}
+
+// move_servo - moves servo with the given id to the specified angle.  all angles are in degrees * 10
+void AP_MotorsHeli::move_servo(uint8_t function_idx, int16_t servo_out)
+{
+    // saturate to the closest angle limit if outside of [min max] angle interval
+    if (!armed()){
+        RC_Channel_aux::set_radio_to_min((RC_Channel_aux::Aux_servo_function_t)function_idx);
+    } else {
+        RC_Channel_aux::set_radio((RC_Channel_aux::Aux_servo_function_t)function_idx, servo_out);
+    }
+}
+#endif

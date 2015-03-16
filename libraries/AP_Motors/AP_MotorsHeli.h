@@ -10,7 +10,11 @@
 #include <AP_Common.h>
 #include <AP_Math.h>        // ArduPilot Mega Vector/Matrix math Library
 #include <RC_Channel.h>     // RC Channel Library
+#include <RC_Channel_aux.h>
 #include "AP_Motors.h"
+
+// enable compound heli controls
+#define AP_MOTORS_COMPOUND_HELI_ENABLE          1
 
 // maximum number of swashplate servos
 #define AP_MOTORS_HELI_NUM_SWASHPLATE_SERVOS    3
@@ -99,6 +103,12 @@ public:
                    RC_Channel&      yaw_servo,
                    uint16_t         loop_rate,
                    uint16_t         speed_hz = AP_MOTORS_HELI_SPEED_DEFAULT) :
+
+        #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+            _thrust_idx(RC_Channel_aux::k_none),
+            _last_check_servo_map_ms(0),
+        #endif
+
         AP_Motors(rc_roll, rc_pitch, rc_throttle, rc_yaw, loop_rate, speed_hz),
         _servo_aux(servo_aux),
         _servo_rsc(servo_rotor),
@@ -127,6 +137,11 @@ public:
         _heliflags.swash_initialised = 0;
         _heliflags.landing_collective = 0;
         _heliflags.motor_runup_complete = 0;
+
+        #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+            // init to no motors being controlled
+            _heliflags.thrust_control = false;
+        #endif
     };
 
     // init
@@ -244,6 +259,12 @@ private:
     // write_aux - outputs pwm onto output aux channel (ch7). servo_out parameter is of the range 0 ~ 1000
     void write_aux(int16_t servo_out);
 
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+        void check_servo_map();
+        void move_servo(uint8_t rc, int16_t angle);
+        RC_Channel_aux::Aux_servo_function_t    _thrust_idx;
+    #endif
+
     // external objects we depend upon
     RC_Channel&     _servo_aux;                 // output to ext gyro gain and tail direct drive esc (ch7)
     RC_Channel&     _servo_rsc;                 // output to main rotor esc (ch8)
@@ -257,6 +278,10 @@ private:
         uint8_t swash_initialised       : 1;    // true if swash has been initialised
         uint8_t landing_collective      : 1;    // true if collective is setup for landing which has much higher minimum
         uint8_t motor_runup_complete    : 1;    // true if the rotors have had enough time to wind up
+
+        #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+            bool    thrust_control          : 1;    // true if mount has pan control
+        #endif
     } _heliflags;
 
     // parameters
@@ -300,6 +325,10 @@ private:
     int16_t         _tail_direct_drive_out;     // current ramped speed of output on ch7 when using direct drive variable pitch tail type
     float           _dt;                        // main loop time
     int16_t         _delta_phase_angle;         // phase angle dynamic compensation
+
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+        uint32_t        _last_check_servo_map_ms;   // system time of latest call to check_servo_map function
+    #endif
 };
 
 #endif  // AP_MOTORSHELI
