@@ -412,11 +412,10 @@ void AP_MotorsHeli::output_armed()
         if (now - _last_check_servo_map_ms > 3000) {
             check_servo_map();
             _last_check_servo_map_ms = now;
-
+        }
         // write the results to the servos
         move_servo(_thrust_idx, _thrust_out);//_ext_gyro_gain);
     #endif
-    }
 }
 
 // output_disarmed - sends commands to the motors
