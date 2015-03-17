@@ -13,9 +13,6 @@
 #include <RC_Channel_aux.h>
 #include "AP_Motors.h"
 
-// enable compound heli controls
-#define AP_MOTORS_COMPOUND_HELI_ENABLE          1
-
 // maximum number of swashplate servos
 #define AP_MOTORS_HELI_NUM_SWASHPLATE_SERVOS    3
 
@@ -104,7 +101,7 @@ public:
                    uint16_t         loop_rate,
                    uint16_t         speed_hz = AP_MOTORS_HELI_SPEED_DEFAULT) :
 
-        #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+        #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
             _thrust_idx(RC_Channel_aux::k_none),
             _last_check_servo_map_ms(0),
         #endif
@@ -129,7 +126,8 @@ public:
         _rotor_speed_estimate(0.0f),
         _tail_direct_drive_out(0),
         _dt(0.01f),
-        _delta_phase_angle(0)
+        _delta_phase_angle(0),
+        _thrust_out(0)
     {
 		AP_Param::setup_object_defaults(this, var_info);
 
@@ -138,7 +136,7 @@ public:
         _heliflags.landing_collective = 0;
         _heliflags.motor_runup_complete = 0;
 
-        #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+        #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
             // init to no motors being controlled
             _heliflags.thrust_control = false;
         #endif
@@ -220,6 +218,8 @@ public:
     //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
     virtual uint16_t    get_motor_mask();
 
+    void set_thrust_motor_output(int16_t thrust) { _thrust_out = thrust; }
+
 protected:
 
     // output - sends commands to the motors
@@ -259,9 +259,9 @@ private:
     // write_aux - outputs pwm onto output aux channel (ch7). servo_out parameter is of the range 0 ~ 1000
     void write_aux(int16_t servo_out);
 
-    #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
         void check_servo_map();
-        void move_servo(uint8_t rc, int16_t angle);
+        void move_servo(uint8_t function_idx, int16_t servo_out);
         RC_Channel_aux::Aux_servo_function_t    _thrust_idx;
     #endif
 
@@ -279,7 +279,7 @@ private:
         uint8_t landing_collective      : 1;    // true if collective is setup for landing which has much higher minimum
         uint8_t motor_runup_complete    : 1;    // true if the rotors have had enough time to wind up
 
-        #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+        #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
             bool    thrust_control          : 1;    // true if mount has pan control
         #endif
     } _heliflags;
@@ -326,7 +326,8 @@ private:
     float           _dt;                        // main loop time
     int16_t         _delta_phase_angle;         // phase angle dynamic compensation
 
-    #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
+        int16_t         _thrust_out;                // thrust for compound heli
         uint32_t        _last_check_servo_map_ms;   // system time of latest call to check_servo_map function
     #endif
 };

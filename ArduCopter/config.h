@@ -119,6 +119,9 @@
   # define HELI_STAB_COLLECTIVE_MAX_DEFAULT     1000
   # define THR_MIN_DEFAULT                      0
   # define AUTOTUNE_ENABLED                     DISABLED
+    #ifndef COMPOUND_HELI_ENABLE
+      # define COMPOUND_HELI_ENABLE                 DISABLED
+    #endif
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////

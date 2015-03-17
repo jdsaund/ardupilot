@@ -232,7 +232,7 @@ void AP_MotorsHeli::Init()
     RC_Channel_aux::disable_aux_channel(_motor_to_channel_map[AP_MOTORS_HELI_AUX]);
     RC_Channel_aux::disable_aux_channel(_motor_to_channel_map[AP_MOTORS_HELI_RSC]);
 
-    #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
         // init aux motors
         _heliflags.thrust_control = true;
         _thrust_idx = RC_Channel_aux::k_motor_thrust;
@@ -405,7 +405,7 @@ void AP_MotorsHeli::output_armed()
     // update rotor and direct drive esc speeds
     rsc_control();
 
-    #if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
 
         // check servo map every three seconds to allow users to modify parameters
         uint32_t now = hal.scheduler->millis();
@@ -414,7 +414,7 @@ void AP_MotorsHeli::output_armed()
             _last_check_servo_map_ms = now;
 
         // write the results to the servos
-        move_servo(_thrust_idx, _ext_gyro_gain);
+        move_servo(_thrust_idx, _thrust_out);//_ext_gyro_gain);
     #endif
     }
 }
@@ -829,7 +829,7 @@ void AP_MotorsHeli::set_delta_phase_angle(int16_t angle)
     calculate_roll_pitch_collective_factors();
 }
 
-#if AP_MOTORS_COMPOUND_HELI_ENABLE == 1
+#if COMPOUND_HELI_ENABLE == ENABLED
 // check_servo_map - detects which axis we control using the functions assigned to the servos in the RC_Channel_aux
 //  should be called periodically (i.e. 1hz or less)
 void AP_MotorsHeli::check_servo_map()

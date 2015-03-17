@@ -158,4 +158,11 @@ static void heli_update_rotor_speed_targets()
     }
 }
 
+#if COMPOUND_HELI_ENABLE == ENABLED
+static void heli_update_thrust_motor()
+{
+    int16_t thrust = g.rc_6.control_in;
+    motors.set_thrust_motor_output(thrust);
+}
+#endif  // COMPOUND_HELI_ENABLE == 1
 #endif  // FRAME_CONFIG == HELI_FRAME

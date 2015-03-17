@@ -998,6 +998,12 @@ static void throttle_loop()
     // update trad heli swash plate movement
     heli_update_landing_swash();
 #endif
+
+#if COMPOUND_HELI_ENABLE == ENABLED
+    // update compound heli thrust
+    heli_update_thrust_motor();
+#endif
+
 }
 
 // update_mount - update camera mount position
