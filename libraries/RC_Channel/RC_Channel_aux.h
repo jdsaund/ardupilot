@@ -69,7 +69,6 @@ public:
         k_parachute_release     = 27,            ///< parachute release
         k_epm                   = 28,            ///< epm gripper
         k_landing_gear_control  = 29,            ///< landing gear controller
-        k_motor_thrust           = 30,            ///< heli thrust motor
         k_nr_aux_servo_functions         ///< This must be the last enum value (only add new values _before_ this one)
     } Aux_servo_function_t;
 

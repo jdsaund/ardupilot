@@ -22,6 +22,7 @@
 #define AP_MOTORS_HELI_SPEED_ANALOG_SERVOS      125     // update rate for analog servos
 
 // TradHeli Aux Function Output Channels
+#define AP_MOTORS_HELI_THRUST                   CH_6
 #define AP_MOTORS_HELI_AUX                      CH_7
 #define AP_MOTORS_HELI_RSC                      CH_8
 
@@ -92,6 +93,7 @@ public:
                    RC_Channel&      rc_pitch,
                    RC_Channel&      rc_throttle,
                    RC_Channel&      rc_yaw,
+                   RC_Channel&      servo_thrust,
                    RC_Channel&      servo_aux,
                    RC_Channel&      servo_rotor,
                    RC_Channel&      swash_servo_1,
@@ -102,7 +104,7 @@ public:
                    uint16_t         speed_hz = AP_MOTORS_HELI_SPEED_DEFAULT) :
 
         #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
-            _thrust_idx(RC_Channel_aux::k_none),
+            _rudder_idx(RC_Channel_aux::k_none),
             _last_check_servo_map_ms(0),
         #endif
 
@@ -127,7 +129,10 @@ public:
         _tail_direct_drive_out(0),
         _dt(0.01f),
         _delta_phase_angle(0),
+    #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
+        _servo_thrust(servo_thrust),
         _thrust_out(0)
+    #endif
     {
 		AP_Param::setup_object_defaults(this, var_info);
 
@@ -138,7 +143,7 @@ public:
 
         #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
             // init to no motors being controlled
-            _heliflags.thrust_control = false;
+            _heliflags.rudder_control = false;
         #endif
     };
 
@@ -218,7 +223,9 @@ public:
     //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
     virtual uint16_t    get_motor_mask();
 
+#if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
     void set_thrust_motor_output(int16_t thrust) { _thrust_out = thrust; }
+#endif
 
 protected:
 
@@ -261,8 +268,9 @@ private:
 
     #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
         void check_servo_map();
-        void move_servo(uint8_t function_idx, int16_t servo_out);
-        RC_Channel_aux::Aux_servo_function_t    _thrust_idx;
+        void write_thrust(int16_t thrust_out);
+        void write_servo(uint8_t function_idx, int16_t servo_out);
+        RC_Channel_aux::Aux_servo_function_t    _rudder_idx;
     #endif
 
     // external objects we depend upon
@@ -272,6 +280,9 @@ private:
     RC_Channel&     _servo_2;                   // swash plate servo #2
     RC_Channel&     _servo_3;                   // swash plate servo #3
     RC_Channel&     _servo_4;                   // tail servo
+#if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
+    RC_Channel&     _servo_thrust;              // thrust output
+#endif
 
     // flags bitmask
     struct heliflags_type {
@@ -280,7 +291,7 @@ private:
         uint8_t motor_runup_complete    : 1;    // true if the rotors have had enough time to wind up
 
         #if AP_MOTORS_COMPOUND_HELI_ENABLE == ENABLED
-            bool    thrust_control          : 1;    // true if mount has pan control
+            bool    rudder_control          : 1;
         #endif
     } _heliflags;
 
