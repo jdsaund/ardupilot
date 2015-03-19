@@ -121,6 +121,7 @@
 #include <AC_P.h>               // P library
 #include <AC_AttitudeControl.h> // Attitude control library
 #include <AC_AttitudeControl_Heli.h> // Attitude control library for traditional helicopter
+#include <AC_AttitudeControl_Compound.h> // Attitude control library for compound helicopter
 #include <AC_PosControl.h>      // Position control library
 #include <RC_Channel.h>         // RC Channel Library
 #include <AP_Motors.h>          // AP Motors library
@@ -418,6 +419,8 @@ static struct {
  #define MOTOR_CLASS AP_MotorsSingle
 #elif FRAME_CONFIG == COAX_FRAME
  #define MOTOR_CLASS AP_MotorsCoax
+#elif FRAME_CONFIG == COMPOUND_FRAME
+ #define MOTOR_CLASS AP_MotorsCompound
 #else
  #error Unrecognised frame type
 #endif
@@ -430,6 +433,8 @@ static MOTOR_CLASS motors(g.rc_1, g.rc_2, g.rc_3, g.rc_4, g.rc_7, MAIN_LOOP_RATE
 static MOTOR_CLASS motors(g.rc_1, g.rc_2, g.rc_3, g.rc_4, g.single_servo_1, g.single_servo_2, g.single_servo_3, g.single_servo_4, MAIN_LOOP_RATE);
 #elif FRAME_CONFIG == COAX_FRAME  // single constructor requires extra servos for flaps
 static MOTOR_CLASS motors(g.rc_1, g.rc_2, g.rc_3, g.rc_4, g.single_servo_1, g.single_servo_2, MAIN_LOOP_RATE);
+#elif FRAME_CONFIG == COMPOUND_FRAME  // helicopter constructor requires more arguments
+static MOTOR_CLASS motors(g.rc_1, g.rc_2, g.rc_3, g.rc_4, g.rc_7, g.rc_8, g.heli_servo_1, g.heli_servo_2, g.heli_servo_3, g.heli_servo_4, MAIN_LOOP_RATE);
 #else
 static MOTOR_CLASS motors(g.rc_1, g.rc_2, g.rc_3, g.rc_4, MAIN_LOOP_RATE);
 #endif
@@ -591,6 +596,9 @@ static AP_InertialNav_NavEKF inertial_nav(ahrs);
 #if FRAME_CONFIG == HELI_FRAME
 AC_AttitudeControl_Heli attitude_control(ahrs, aparm, motors, g.p_stabilize_roll, g.p_stabilize_pitch, g.p_stabilize_yaw,
                         g.pid_rate_roll, g.pid_rate_pitch, g.pid_rate_yaw);
+#elif FRAME_CONFIG == COMPOUND_FRAME
+AC_AttitudeControl_Compound attitude_control(ahrs, aparm, motors, g.p_stabilize_roll, g.p_stabilize_pitch, g.p_stabilize_yaw,
+                        g.pid_rate_roll, g.pid_rate_pitch, g.pid_rate_yaw);
 #else
 AC_AttitudeControl attitude_control(ahrs, aparm, motors, g.p_stabilize_roll, g.p_stabilize_pitch, g.p_stabilize_yaw,
                         g.pid_rate_roll, g.pid_rate_pitch, g.pid_rate_yaw);
@@ -735,7 +743,7 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
     { three_hz_loop,       133,      9 },
     { compass_accumulate,    8,     42 },
     { barometer_accumulate,  8,     25 },
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     { check_dynamic_flight,  8,     10 },
 #endif
     { update_notify,         8,     10 },
@@ -810,7 +818,7 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
     { three_hz_loop,        33,      90 },
     { compass_accumulate,    2,     420 },
     { barometer_accumulate,  2,     250 },
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     { check_dynamic_flight,  2,     100 },
 #endif
     { update_notify,         2,     100 },
@@ -950,7 +958,7 @@ static void fast_loop()
     // run low level rate controllers that only require IMU data
     attitude_control.rate_controller_run();
     
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     update_heli_control_dynamics();
 #endif //HELI_FRAME
 
@@ -991,7 +999,7 @@ static void throttle_loop()
     // check auto_armed status
     update_auto_armed();
 
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     // update rotor speed
     heli_update_rotor_speed_targets();
 

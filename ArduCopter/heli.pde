@@ -4,7 +4,7 @@
 
 #include "heli.h"
 
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
 
 #ifndef HELI_DYNAMIC_FLIGHT_SPEED_MIN
  #define HELI_DYNAMIC_FLIGHT_SPEED_MIN      500     // we are in "dynamic flight" when the speed is over 1m/s for 2 seconds

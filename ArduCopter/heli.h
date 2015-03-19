@@ -5,7 +5,7 @@
 
 // Traditional helicopter variables and functions
 
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
 
 // Mode filter to reject RC Input glitches.  Filter size is 5, and it draws the 4th element, so it can reject 3 low glitches,
 // and 1 high glitch.  This is because any "off" glitches can be highly problematic for a helicopter running an ESC

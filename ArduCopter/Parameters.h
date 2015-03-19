@@ -406,7 +406,7 @@ public:
     AP_Float        ekfcheck_thresh;
     AP_Float        dcmcheck_thresh;
 
-#if FRAME_CONFIG ==     HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     // Heli
     RC_Channel      heli_servo_1, heli_servo_2, heli_servo_3, heli_servo_4;     // servos for swash plate and tail
     AP_Int16        heli_stab_col_min;                                          // min collective while pilot directly controls collective in stabilize mode
@@ -457,6 +457,14 @@ public:
     AC_HELI_PID             pid_rate_roll;
     AC_HELI_PID             pid_rate_pitch;
     AC_HELI_PID             pid_rate_yaw;
+#elif FRAME_CONFIG == COMPOUND_FRAME
+    AC_HELI_PID             pid_rate_roll;
+    AC_HELI_PID             pid_rate_pitch;
+    AC_HELI_PID             pid_rate_yaw;
+    //AC_HELI_PID             pid_rate_ail;
+    //AC_HELI_PID             pid_rate_ele;
+    //AC_HELI_PID             pid_rate_rud;
+    //AC_HELI_PID             pid_rate_thrust;
 #else
     AC_PID                  pid_rate_roll;
     AC_PID                  pid_rate_pitch;
@@ -481,7 +489,7 @@ public:
     // above.
     Parameters() :
 
-#if FRAME_CONFIG ==     HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
         heli_servo_1        (CH_1),
         heli_servo_2        (CH_2),
         heli_servo_3        (CH_3),

@@ -102,7 +102,7 @@ static void tuning() {
         g.acro_yaw_p = tuning_value;
         break;
 
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     case CH6_HELI_EXTERNAL_GYRO:
         motors.ext_gyro_gain(g.rc_6.control_in);
         break;

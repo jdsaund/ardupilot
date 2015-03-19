@@ -448,7 +448,7 @@ const AP_Param::Info var_info[] PROGMEM = {
     // @User: Advanced
     GSCALAR(dcmcheck_thresh, "DCM_CHECK_THRESH",    DCMCHECK_THRESHOLD_DEFAULT),
 
-#if FRAME_CONFIG ==     HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     // @Group: HS1_
     // @Path: ../libraries/RC_Channel/RC_Channel.cpp
     GGROUP(heli_servo_1,    "HS1_", RC_Channel),
@@ -619,7 +619,7 @@ const AP_Param::Info var_info[] PROGMEM = {
     // @Range: 0.001 0.02
     // @Increment: 0.001
     // @User: Standard
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     GGROUP(pid_rate_roll,     "RATE_RLL_", AC_HELI_PID),
 #else
     GGROUP(pid_rate_roll,     "RATE_RLL_", AC_PID),
@@ -653,7 +653,7 @@ const AP_Param::Info var_info[] PROGMEM = {
     // @Range: 0.001 0.02
     // @Increment: 0.001
     // @User: Standard
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     GGROUP(pid_rate_pitch,    "RATE_PIT_", AC_HELI_PID),
 #else
     GGROUP(pid_rate_pitch,    "RATE_PIT_", AC_PID),
@@ -687,7 +687,7 @@ const AP_Param::Info var_info[] PROGMEM = {
     // @Range: 0.000 0.02
     // @Increment: 0.001
     // @User: Standard
-#if FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME || FRAME_CONFIG == COMPOUND_FRAME
     GGROUP(pid_rate_yaw,      "RATE_YAW_", AC_HELI_PID),
 #else
     GGROUP(pid_rate_yaw,      "RATE_YAW_", AC_PID),
@@ -834,6 +834,10 @@ const AP_Param::Info var_info[] PROGMEM = {
     // @Group: ATC_
     // @Path: ../libraries/AC_AttitudeControl/AC_AttitudeControl_Heli.cpp
     GOBJECT(attitude_control, "ATC_", AC_AttitudeControl_Heli),
+#elif FRAME_CONFIG == COMPOUND_FRAME
+    // @Group: ATC_
+    // @Path: ../libraries/AC_AttitudeControl/AC_AttitudeControl_Compound.cpp
+    GOBJECT(attitude_control, "ATC_", AC_AttitudeControl_Compound),
 #else
     // @Group: ATC_
     // @Path: ../libraries/AC_AttitudeControl/AC_AttitudeControl.cpp
@@ -915,6 +919,11 @@ const AP_Param::Info var_info[] PROGMEM = {
     // @Group: H_
     // @Path: ../libraries/AP_Motors/AP_MotorsHeli.cpp
     GOBJECT(motors, "H_",           AP_MotorsHeli),
+
+#elif FRAME_CONFIG == COMPOUND_FRAME
+    // @Group: H_
+    // @Path: ../libraries/AP_Motors/AP_MotorsCompound.cpp
+    GOBJECT(motors, "H_",           AP_MotorsCompound),
 
 #elif FRAME_CONFIG == SINGLE_FRAME
     // @Group: SS1_
