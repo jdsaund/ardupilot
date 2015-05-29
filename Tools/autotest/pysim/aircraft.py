@@ -20,6 +20,7 @@ class Aircraft(object):
         self.gyro = Vector3(0,0,0) # rad/s
 
         self.velocity = Vector3(0, 0, 0) # m/s, North, East, Down
+	self.velocity_body = Vector3(0, 0, 0)
         self.position = Vector3(0, 0, 0) # m North, East, Down
         self.mass = 0.0
         self.update_frequency = 50 # in Hz
