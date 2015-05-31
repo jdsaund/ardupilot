@@ -194,6 +194,10 @@ case $FRAME in
 	BUILD_TARGET="sitl-heli"
         EXTRA_SIM="--frame=heli"
 	;;
+    compound)
+	BUILD_TARGET="sitl-compound"
+        EXTRA_SIM="--frame=compound"
+	;;
     elevon*)
         EXTRA_PARM="param set ELEVON_OUTPUT 4;"
         EXTRA_SIM="--elevon"

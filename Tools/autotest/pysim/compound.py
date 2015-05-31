@@ -82,7 +82,7 @@ class Compound(Aircraft):
 	aoa = degrees(pit) - trajectory_angle
 	wing_lift = 0.3 * vel_x_squared * (sin (radians(2.0 * (aoa + 5.0))) - (0.5 * sin (radians((4.0 * (aoa +5.0)) + 180.0))))
 
-	# print"trajectory_angle = %.2f aoa = %.2f wing_lift = %.2f" % (trajectory_angle, aoa, wing_lift)
+	print"trajectory_angle = %.2f aoa = %.2f wing_lift = %.2f" % (trajectory_angle, aoa, wing_lift)
 
         accel_body = Vector3(prop_thrust / self.mass, 0, (-thrust - wing_lift) / self.mass)
         accel_earth = self.dcm * accel_body

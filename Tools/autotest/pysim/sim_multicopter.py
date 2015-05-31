@@ -2,6 +2,7 @@
 
 from multicopter import MultiCopter
 from helicopter import HeliCopter
+from compound import Compound
 import util, time, os, sys, math
 import socket, struct
 import select, errno
@@ -133,6 +134,8 @@ fdm = fgFDM.fgFDM()
 # create the quadcopter model
 if opts.frame == 'heli':
     a = HeliCopter(frame=opts.frame)
+elif opts.frame == 'compound':
+    a = Compound(frame=opts.frame)
 else:    
     a = MultiCopter(frame=opts.frame)
 
