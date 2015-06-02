@@ -126,6 +126,9 @@
   # define HELI_STAB_COLLECTIVE_MAX_DEFAULT     1000
   # define THR_MIN_DEFAULT                      0
   # define AUTOTUNE_ENABLED                     DISABLED
+  # ifndef HELI_TYPE
+      # define HELI_TYPE                        TRADITIONAL    //TRADITIONAL vs COMPOUND (vs TANDEM ?)
+  # endif
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////

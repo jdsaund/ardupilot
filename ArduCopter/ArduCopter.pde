@@ -428,7 +428,11 @@ static struct {
 #endif
 
 #if FRAME_CONFIG == HELI_FRAME  // helicopter constructor requires more arguments
-static MOTOR_CLASS motors(g.rc_7, g.rc_8, g.heli_servo_1, g.heli_servo_2, g.heli_servo_3, g.heli_servo_4, MAIN_LOOP_RATE);
+    #if HELI_TYPE == COMPOUND
+    static MOTOR_CLASS motors(g.rc_6, g.rc_7, g.rc_8, g.heli_servo_1, g.heli_servo_2, g.heli_servo_3, g.heli_servo_4, MAIN_LOOP_RATE);
+    #else
+    static MOTOR_CLASS motors(g.rc_7, g.rc_8, g.heli_servo_1, g.heli_servo_2, g.heli_servo_3, g.heli_servo_4, MAIN_LOOP_RATE);
+    #endif
 #elif FRAME_CONFIG == TRI_FRAME  // tri constructor requires additional rc_7 argument to allow tail servo reversing
 static MOTOR_CLASS motors(MAIN_LOOP_RATE);
 #elif FRAME_CONFIG == SINGLE_FRAME  // single constructor requires extra servos for flaps
@@ -929,6 +933,11 @@ static void throttle_loop()
 
     // update trad heli swash plate movement
     heli_update_landing_swash();
+
+    // update thrust motor output for compound helis
+    #if HELI_TYPE == COMPOUND
+    heli_update_thrust_motor();
+    #endif
 #endif
 }
 

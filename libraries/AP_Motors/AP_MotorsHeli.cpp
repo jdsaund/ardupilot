@@ -233,6 +233,18 @@ void AP_MotorsHeli::Init()
     // disable channels 7 and 8 from being used by RC_Channel_aux
     RC_Channel_aux::disable_aux_channel(_motor_to_channel_map[AP_MOTORS_HELI_AUX]);
     RC_Channel_aux::disable_aux_channel(_motor_to_channel_map[AP_MOTORS_HELI_RSC]);
+    if (AP_MOTORS_HELI_TYPE == COMPOUND) {
+        RC_Channel_aux::disable_aux_channel(_motor_to_channel_map[AP_MOTORS_HELI_THRUST]);
+    }
+
+    if (AP_MOTORS_HELI_TYPE == COMPOUND) {
+        // init fixed wing servos
+        _heliflags.rudder_control = true;
+        _rudder_idx = RC_Channel_aux::k_rudder;
+
+        // check which servos have been assigned
+        check_servo_map();
+    }
 }
 
 // set update rate to motors - a value in hertz
@@ -260,6 +272,9 @@ void AP_MotorsHeli::enable()
     hal.rcout->enable_ch(pgm_read_byte(&_motor_to_channel_map[AP_MOTORS_MOT_4]));    // yaw
     hal.rcout->enable_ch(AP_MOTORS_HELI_AUX);                               // output for gyro gain or direct drive variable pitch tail motor
     hal.rcout->enable_ch(AP_MOTORS_HELI_RSC);                               // output for main rotor esc
+    if (AP_MOTORS_HELI_TYPE == COMPOUND) {
+        hal.rcout->enable_ch(AP_MOTORS_HELI_THRUST);                            // output for thrust esc
+    }
 }
 
 // output - sends commands to the servos
@@ -389,7 +404,11 @@ void AP_MotorsHeli::recalc_scalers()
 uint16_t AP_MotorsHeli::get_motor_mask()
 {
     // heli uses channels 1,2,3,4,7 and 8
-    return (1U << 0 | 1U << 1 | 1U << 2 | 1U << 3 | 1U << AP_MOTORS_HELI_AUX | 1U << AP_MOTORS_HELI_RSC);
+    if (AP_MOTORS_HELI_TYPE == COMPOUND) {
+        return (1U << 0 | 1U << 1 | 1U << 2 | 1U << 3 | 1U << AP_MOTORS_HELI_THRUST | 1U << AP_MOTORS_HELI_AUX | 1U << AP_MOTORS_HELI_RSC);
+    } else {
+        return (1U << 0 | 1U << 1 | 1U << 2 | 1U << 3 | 1U << AP_MOTORS_HELI_AUX | 1U << AP_MOTORS_HELI_RSC);
+    }
 }
 
 //
@@ -417,6 +436,19 @@ void AP_MotorsHeli::output_armed_stabilizing()
 
     // update rotor and direct drive esc speeds
     rsc_control();
+
+    if (AP_MOTORS_HELI_TYPE == COMPOUND) {
+        // check servo map every three seconds to allow users to modify parameters
+        uint32_t now = hal.scheduler->millis();
+        if (now - _last_check_servo_map_ms > 3000) {
+            check_servo_map();
+            _last_check_servo_map_ms = now;
+        }
+
+        // write the results to the servos
+        write_thrust(_thrust_out);
+        write_servo(_rudder_idx, _servo_4.radio_out);
+    }
 }
 
 // output_armed_zero_throttle - sends commands to the motors
@@ -864,4 +896,27 @@ void AP_MotorsHeli::reset_radio_passthrough()
     _pitch_radio_passthrough = 0;
     _throttle_radio_passthrough = 500;
     _yaw_radio_passthrough = 0;
+}
+
+// check_servo_map - detects which axis we control using the functions assigned to the servos in the RC_Channel_aux
+// should be called periodically (i.e. 1hz or less)
+void AP_MotorsHeli::check_servo_map()
+{
+    _heliflags.rudder_control = RC_Channel_aux::function_assigned(_rudder_idx);
+}
+
+// move_servo_thrust - runs thrust motor at specified output
+void AP_MotorsHeli::write_thrust(int16_t thrust_out)
+{
+    if (!armed()){
+        hal.rcout->write(AP_MOTORS_HELI_THRUST, _servo_thrust.radio_min);
+    } else {
+        hal.rcout->write(AP_MOTORS_HELI_THRUST, thrust_out);
+    }
+}
+
+// move_servo - moves servo with the given id to the specified output
+void AP_MotorsHeli::write_servo(uint8_t function_idx, int16_t servo_out)
+{
+    RC_Channel_aux::set_radio((RC_Channel_aux::Aux_servo_function_t)function_idx, servo_out);
 }

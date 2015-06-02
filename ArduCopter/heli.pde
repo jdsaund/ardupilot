@@ -161,4 +161,12 @@ static void heli_radio_passthrough()
     motors.set_radio_passthrough(channel_roll->control_in, channel_pitch->control_in, channel_throttle->control_in, channel_yaw->control_in);
 }
 
+#if HELI_TYPE == COMPOUND
+    static void heli_update_thrust_motor()
+        {
+            int16_t thrust = g.rc_6.radio_in;
+            motors.set_thrust_motor_output(thrust);
+        }
+#endif
+
 #endif  // FRAME_CONFIG == HELI_FRAME

@@ -10,7 +10,19 @@
 #include <AP_Common.h>
 #include <AP_Math.h>        // ArduPilot Mega Vector/Matrix math Library
 #include <RC_Channel.h>     // RC Channel Library
+#include <RC_Channel_aux.h>
 #include "AP_Motors.h"
+
+// helicopter type
+#if HELI_TYPE == COMPOUND
+    #define AP_MOTORS_HELI_TYPE                 COMPOUND
+#else
+    #define AP_MOTORS_HELI_TYPE                 TRADITIONAL
+#endif
+
+#define TRADITIONAL                             0
+#define COMPOUND                                1
+
 
 // maximum number of swashplate servos
 #define AP_MOTORS_HELI_NUM_SWASHPLATE_SERVOS    3
@@ -21,6 +33,7 @@
 #define AP_MOTORS_HELI_SPEED_ANALOG_SERVOS      125     // update rate for analog servos
 
 // TradHeli Aux Function Output Channels
+#define AP_MOTORS_HELI_THRUST                   CH_6
 #define AP_MOTORS_HELI_AUX                      CH_7
 #define AP_MOTORS_HELI_RSC                      CH_8
 
@@ -86,7 +99,8 @@ class AP_MotorsHeli : public AP_Motors {
 public:
 
     /// Constructor
-    AP_MotorsHeli( RC_Channel&      servo_aux,
+    AP_MotorsHeli( RC_Channel&      servo_thrust,
+                   RC_Channel&      servo_aux,
                    RC_Channel&      servo_rotor,
                    RC_Channel&      swash_servo_1,
                    RC_Channel&      swash_servo_2,
@@ -113,7 +127,11 @@ public:
         _rsc_runup_increment(0.0f),
         _rotor_speed_estimate(0.0f),
         _tail_direct_drive_out(0),
-        _delta_phase_angle(0)
+        _delta_phase_angle(0),
+        _rudder_idx(RC_Channel_aux::k_none),
+        _last_check_servo_map_ms(0),
+        _servo_thrust(servo_thrust),
+        _thrust_out(0)
     {
 		AP_Param::setup_object_defaults(this, var_info);
 
@@ -121,6 +139,7 @@ public:
         _heliflags.swash_initialised = 0;
         _heliflags.landing_collective = 0;
         _heliflags.rotor_runup_complete = 0;
+        _heliflags.rudder_control = false;
     };
 
     // init
@@ -205,6 +224,9 @@ public:
     // output - sends commands to the motors
     void    output();
 
+    // set the thrust output for compound helis
+    void set_thrust_motor_output(int16_t thrust) { _thrust_out = thrust; }
+
 protected:
 
     // output - sends commands to the motors
@@ -249,6 +271,11 @@ private:
     // write_aux - outputs pwm onto output aux channel (ch7). servo_out parameter is of the range 0 ~ 1000
     void write_aux(int16_t servo_out);
 
+    // compound heli related
+    void check_servo_map();
+    void write_thrust(int16_t thrust_out);
+    void write_servo(uint8_t function_idx, int16_t servo_out);
+
     // external objects we depend upon
     RC_Channel&     _servo_aux;                 // output to ext gyro gain and tail direct drive esc (ch7)
     RC_Channel&     _servo_rsc;                 // output to main rotor esc (ch8)
@@ -256,12 +283,15 @@ private:
     RC_Channel&     _servo_2;                   // swash plate servo #2
     RC_Channel&     _servo_3;                   // swash plate servo #3
     RC_Channel&     _servo_4;                   // tail servo
+    RC_Channel&     _servo_thrust;              // thrust output for compound helis
+    RC_Channel_aux::Aux_servo_function_t    _rudder_idx; //fixed wing surfaces for compound helis
 
     // flags bitmask
     struct heliflags_type {
         uint8_t swash_initialised       : 1;    // true if swash has been initialised
         uint8_t landing_collective      : 1;    // true if collective is setup for landing which has much higher minimum
         uint8_t rotor_runup_complete    : 1;    // true if the rotors have had enough time to wind up
+        bool    rudder_control          : 1;
     } _heliflags;
 
     // parameters
@@ -309,6 +339,8 @@ private:
     int16_t         _pitch_radio_passthrough;   // pitch control PWM direct from radio, used for manual control
     int16_t         _throttle_radio_passthrough;// throttle control PWM direct from radio, used for manual control
     int16_t         _yaw_radio_passthrough;     // yaw control PWM direct from radio, used for manual control
+    int16_t         _thrust_out;                // thrust for compound heli
+    uint32_t        _last_check_servo_map_ms;   // system time of latest call to check_servo_map function
 };
 
 #endif  // AP_MOTORSHELI
