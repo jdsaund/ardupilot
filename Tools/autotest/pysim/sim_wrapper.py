@@ -136,6 +136,10 @@ if opts.frame == 'heli':
     from helicopter import HeliCopter
     a = HeliCopter(frame=opts.frame)
     frame_rate = 400
+elif opts.frame == 'compound':
+    from compound import Compound
+    a = Compound(frame=opts.frame)
+    frame_rate = 400
 elif opts.frame == 'IrisRos':
     from iris_ros import IrisRos
     a = IrisRos()

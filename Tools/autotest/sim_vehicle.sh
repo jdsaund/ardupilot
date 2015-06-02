@@ -219,6 +219,10 @@ case $FRAME in
 	BUILD_TARGET="sitl-heli"
         EXTRA_SIM="$EXTRA_SIM --frame=heli"
 	;;
+    compound)
+	BUILD_TARGET="sitl-heli"
+        EXTRA_SIM="$EXTRA_SIM --frame=compound"
+	;;
     IrisRos)
 	BUILD_TARGET="sitl"
         EXTRA_SIM="$EXTRA_SIM --frame=IrisRos"
