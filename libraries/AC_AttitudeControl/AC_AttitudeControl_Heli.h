@@ -19,7 +19,8 @@ public:
                         const AP_Vehicle::MultiCopter &aparm,
                         AP_MotorsHeli& motors,
                         AC_P& p_angle_roll, AC_P& p_angle_pitch, AC_P& p_angle_yaw,
-                        AC_HELI_PID& pid_rate_roll, AC_HELI_PID& pid_rate_pitch, AC_HELI_PID& pid_rate_yaw
+                        AC_HELI_PID& pid_rate_roll, AC_HELI_PID& pid_rate_pitch, AC_HELI_PID& pid_rate_yaw,
+                        AC_HELI_PID& pid_aero_roll, AC_HELI_PID& pid_aero_pitch, AC_HELI_PID& pid_aero_yaw
                         ) :
         AC_AttitudeControl(ahrs, aparm, motors,
                            p_angle_roll, p_angle_pitch, p_angle_yaw,

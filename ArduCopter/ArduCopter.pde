@@ -599,7 +599,7 @@ static AP_InertialNav_NavEKF inertial_nav(ahrs);
 ////////////////////////////////////////////////////////////////////////////////
 #if FRAME_CONFIG == HELI_FRAME
 AC_AttitudeControl_Heli attitude_control(ahrs, aparm, motors, g.p_stabilize_roll, g.p_stabilize_pitch, g.p_stabilize_yaw,
-                        g.pid_rate_roll, g.pid_rate_pitch, g.pid_rate_yaw);
+                        g.pid_rate_roll, g.pid_rate_pitch, g.pid_rate_yaw, g.pid_aero_roll, g.pid_aero_pitch, g.pid_aero_yaw);
 #else
 AC_AttitudeControl attitude_control(ahrs, aparm, motors, g.p_stabilize_roll, g.p_stabilize_pitch, g.p_stabilize_yaw,
                         g.pid_rate_roll, g.pid_rate_pitch, g.pid_rate_yaw);

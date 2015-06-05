@@ -126,6 +126,24 @@
   # define HELI_STAB_COLLECTIVE_MAX_DEFAULT     1000
   # define THR_MIN_DEFAULT                      0
   # define AUTOTUNE_ENABLED                     DISABLED
+  # define AERO_ROLL_P                          0.02
+  # define AERO_ROLL_I                          0.5
+  # define AERO_ROLL_D                          0.001
+  # define AERO_ROLL_IMAX                       4500
+  # define AERO_ROLL_FF                         0.05
+  # define AERO_ROLL_FILT_HZ                    20.0f
+  # define AERO_PITCH_P                         0.02
+  # define AERO_PITCH_I                         0.5
+  # define AERO_PITCH_D                         0.001
+  # define AERO_PITCH_IMAX                      4500
+  # define AERO_PITCH_FF                        0.05
+  # define AERO_PITCH_FILT_HZ                   20.0f
+  # define AERO_YAW_P                           0.15
+  # define AERO_YAW_I                           0.100
+  # define AERO_YAW_D                           0.003
+  # define AERO_YAW_IMAX                        4500
+  # define AERO_YAW_FF                          0.02
+  # define AERO_YAW_FILT_HZ                     20.0f
   # ifndef HELI_TYPE
       # define HELI_TYPE                        TRADITIONAL    //TRADITIONAL vs COMPOUND (vs TANDEM ?)
   # endif

@@ -719,6 +719,100 @@ const AP_Param::Info var_info[] PROGMEM = {
     GGROUP(pid_rate_yaw,      "RATE_YAW_", AC_PID),
 #endif
 
+    // AERO PID controller
+    //---------------
+#if FRAME_CONFIG == HELI_FRAME
+    // @Param: AERO_RLL_P
+    // @DisplayName: Roll axis aero controller P gain
+    // @Description: Roll axis aero controller P gain.  Converts the difference between desired roll rate and actual roll rate into a motor speed output
+    // @Range: 0.08 0.30
+    // @Increment: 0.005
+    // @User: Standard
+
+    // @Param: AERO_RLL_I
+    // @DisplayName: Roll axis aero controller I gain
+    // @Description: Roll axis aero controller I gain.  Corrects long-term difference in desired roll rate vs actual roll rate
+    // @Range: 0.01 0.5
+    // @Increment: 0.01
+    // @User: Standard
+
+    // @Param: AERO_RLL_IMAX
+    // @DisplayName: Roll axis aero controller I gain maximum
+    // @Description: Roll axis aero controller I gain maximum.  Constrains the maximum motor output that the I gain will output
+    // @Range: 0 4500
+    // @Increment: 10
+    // @Units: Percent*10
+    // @User: Standard
+
+    // @Param: AERO_RLL_D
+    // @DisplayName: Roll axis aero controller D gain
+    // @Description: Roll axis aero controller D gain.  Compensates for short-term change in desired roll rate vs actual roll rate
+    // @Range: 0.001 0.02
+    // @Increment: 0.001
+    // @User: Standard
+    GGROUP(pid_aero_roll,     "AERO_RLL_", AC_HELI_PID),
+
+    // @Param: AERO_PIT_P
+    // @DisplayName: Pitch axis aero controller P gain
+    // @Description: Pitch axis aero controller P gain.  Converts the difference between desired pitch rate and actual pitch rate into a motor speed output
+    // @Range: 0.08 0.30
+    // @Increment: 0.005
+    // @User: Standard
+
+    // @Param: AERO_PIT_I
+    // @DisplayName: Pitch axis aero controller I gain
+    // @Description: Pitch axis aero controller I gain.  Corrects long-term difference in desired pitch rate vs actual pitch rate
+    // @Range: 0.01 0.5
+    // @Increment: 0.01
+    // @User: Standard
+
+    // @Param: AERO_PIT_IMAX
+    // @DisplayName: Pitch axis aero controller I gain maximum
+    // @Description: Pitch axis aero controller I gain maximum.  Constrains the maximum motor output that the I gain will output
+    // @Range: 0 4500
+    // @Increment: 10
+    // @Units: Percent*10
+    // @User: Standard
+
+    // @Param: AERO_PIT_D
+    // @DisplayName: Pitch axis aero controller D gain
+    // @Description: Pitch axis aero controller D gain.  Compensates for short-term change in desired pitch rate vs actual pitch rate
+    // @Range: 0.001 0.02
+    // @Increment: 0.001
+    // @User: Standard
+    GGROUP(pid_aero_pitch,    "AERO_PIT_", AC_HELI_PID),
+
+    // @Param: AERO_YAW_P
+    // @DisplayName: Yaw axis aero controller P gain
+    // @Description: Yaw axis aero controller P gain.  Converts the difference between desired yaw rate and actual yaw rate into a motor speed output
+    // @Range: 0.150 0.50
+    // @Increment: 0.005
+    // @User: Standard
+
+    // @Param: AERO_YAW_I
+    // @DisplayName: Yaw axis aero controller I gain
+    // @Description: Yaw axis aero controller I gain.  Corrects long-term difference in desired yaw rate vs actual yaw rate
+    // @Range: 0.010 0.05
+    // @Increment: 0.01
+    // @User: Standard
+
+    // @Param: AERO_YAW_IMAX
+    // @DisplayName: Yaw axis aero controller I gain maximum
+    // @Description: Yaw axis aero controller I gain maximum.  Constrains the maximum motor output that the I gain will output
+    // @Range: 0 4500
+    // @Increment: 10
+    // @Units: Percent*10
+    // @User: Standard
+
+    // @Param: AERO_YAW_D
+    // @DisplayName: Yaw axis aero controller D gain
+    // @Description: Yaw axis aero controller D gain.  Compensates for short-term change in desired yaw rate vs actual yaw rate
+    // @Range: 0.000 0.02
+    // @Increment: 0.001
+    // @User: Standard
+    GGROUP(pid_aero_yaw,      "AERO_YAW_", AC_HELI_PID),
+#endif
+
     // @Param: VEL_XY_P
     // @DisplayName: Velocity (horizontal) P gain
     // @Description: Velocity (horizontal) P gain.  Converts the difference between desired velocity to a target acceleration

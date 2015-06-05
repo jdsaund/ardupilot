@@ -168,6 +168,13 @@ public:
         k_param_motors = 90,
 
         //
+        // 95: Aero
+        //
+        k_param_pid_aero_roll = 95,
+        k_param_pid_aero_pitch,
+        k_param_pid_aero_yaw,
+
+        //
         // 100: Inertial Nav
         //
         k_param_inertial_nav = 100, // deprecated
@@ -466,6 +473,11 @@ public:
     AC_HELI_PID             pid_rate_roll;
     AC_HELI_PID             pid_rate_pitch;
     AC_HELI_PID             pid_rate_yaw;
+    #if HELI_TYPE == COMPOUND
+        AC_HELI_PID                  pid_aero_roll;
+        AC_HELI_PID                  pid_aero_pitch;
+        AC_HELI_PID                  pid_aero_yaw;
+    #endif
 #else
     AC_PID                  pid_rate_roll;
     AC_PID                  pid_rate_pitch;
@@ -533,7 +545,14 @@ public:
         pid_rate_roll           (RATE_ROLL_P,     RATE_ROLL_I,      RATE_ROLL_D,    RATE_ROLL_IMAX,     RATE_ROLL_FILT_HZ,  MAIN_LOOP_SECONDS, RATE_ROLL_FF),
         pid_rate_pitch          (RATE_PITCH_P,    RATE_PITCH_I,     RATE_PITCH_D,   RATE_PITCH_IMAX,    RATE_PITCH_FILT_HZ, MAIN_LOOP_SECONDS, RATE_PITCH_FF),
         pid_rate_yaw            (RATE_YAW_P,      RATE_YAW_I,       RATE_YAW_D,     RATE_YAW_IMAX,      RATE_YAW_FILT_HZ,   MAIN_LOOP_SECONDS, RATE_YAW_FF),
-#else
+
+    #if HELI_TYPE == COMPOUND
+        pid_aero_roll           (AERO_ROLL_P,     AERO_ROLL_I,      AERO_ROLL_D,    AERO_ROLL_IMAX,     AERO_ROLL_FILT_HZ,  MAIN_LOOP_SECONDS, AERO_ROLL_FF),
+        pid_aero_pitch          (AERO_PITCH_P,    AERO_PITCH_I,     AERO_PITCH_D,   AERO_PITCH_IMAX,    AERO_PITCH_FILT_HZ, MAIN_LOOP_SECONDS, AERO_PITCH_FF),
+        pid_aero_yaw            (AERO_YAW_P,      AERO_YAW_I,       AERO_YAW_D,     AERO_YAW_IMAX,      AERO_YAW_FILT_HZ,   MAIN_LOOP_SECONDS, AERO_YAW_FF),
+    #endif
+
+        #else
         pid_rate_roll           (RATE_ROLL_P,     RATE_ROLL_I,      RATE_ROLL_D,    RATE_ROLL_IMAX,     RATE_ROLL_FILT_HZ,  MAIN_LOOP_SECONDS),
         pid_rate_pitch          (RATE_PITCH_P,    RATE_PITCH_I,     RATE_PITCH_D,   RATE_PITCH_IMAX,    RATE_PITCH_FILT_HZ, MAIN_LOOP_SECONDS),
         pid_rate_yaw            (RATE_YAW_P,      RATE_YAW_I,       RATE_YAW_D,     RATE_YAW_IMAX,      RATE_YAW_FILT_HZ,   MAIN_LOOP_SECONDS),
