@@ -157,6 +157,9 @@
 #endif
 #include <AP_LandingGear.h>     // Landing Gear library
 #include <AP_Terrain.h>
+#if COMPOUND == ENABLED
+#include <AP_Compound.h>        // Compound copter library
+#endif
 
 // AP_HAL to Arduino compatibility layer
 #include "compat.h"
