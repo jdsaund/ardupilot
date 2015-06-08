@@ -310,6 +310,11 @@ private:
 
     MOTOR_CLASS motors;
 
+    // Compound Copter output
+#if COMPOUND == ENABLED
+ #define AP_Compound compound
+#endif
+
     // GPS variables
     // Sometimes we need to remove the scaling for distance calcs
     float scaleLongDown;

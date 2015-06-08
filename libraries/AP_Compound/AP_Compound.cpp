@@ -14,6 +14,14 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "AP_Compound_Class.h"
+#include "AP_Compound.h"
 #include <AP_HAL.h>
 extern const AP_HAL::HAL& hal;
+
+// Constructor
+AP_Compound::AP_Compound(uint16_t loop_rate, uint16_t speed_hz) :
+            _loop_rate(loop_rate),
+            _speed_hz(speed_hz)
+    {
+
+    };
