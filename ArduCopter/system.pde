@@ -252,6 +252,11 @@ static void init_ardupilot()
     heli_init();
 #endif
 
+    // init compound copter
+#if COMPOUND == ENABLED
+    compound.Init();
+#endif
+
     startup_ground(true);
 
 #if LOGGING_ENABLED == ENABLED

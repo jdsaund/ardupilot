@@ -6,6 +6,7 @@
 #include <AP_Common.h>
 #include <RC_Channel.h>     // RC Channel Library
 #include <RC_Channel_aux.h>
+#include <AP_Motors.h>
 
 // servo update rate
 #define AP_COMPOUND_SPEED_DEFAULT     125 // default output rate to the servos
@@ -17,13 +18,15 @@ public:
     // Constructor
     AP_Compound(uint16_t    loop_rate,
                 uint16_t    speed_hz = AP_COMPOUND_SPEED_DEFAULT):
-        _loop_rate(loop_rate),
-        _speed_hz(speed_hz),
-        _rudder_idx(RC_Channel_aux::k_none),
-        _last_check_servo_map_ms(0)
+                _loop_rate(loop_rate),
+                _speed_hz(speed_hz),
+                _rudder_idx(RC_Channel_aux::k_none),
+                _last_check_servo_map_ms(0),
+                _rudder_out(0)
         {
             // initialise flags
             _flags.rudder_control = false;
+            _flags.armed          = false;
         };
 
     // init
@@ -32,11 +35,12 @@ public:
     // enable - starts allowing signals to be sent to motors
     void enable();
 
-    // var_info for holding Parameter information
-    static const struct AP_Param::GroupInfo var_info[];
-
     // output - sends commands to the motors
     void output();
+
+    void set_rudder(int16_t yaw_in){_rudder_out = yaw_in;};
+
+    void set_arm_status(bool arm_status){ _flags.armed = arm_status;};
 
 protected:
 
@@ -50,6 +54,7 @@ private:
     // flags bitmask
     struct flags_type {
         bool    rudder_control          : 1;
+        bool    armed                   : 1;
     } _flags;
 
     uint16_t            _loop_rate;                 // rate at which output() function is called (normally 400hz)

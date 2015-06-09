@@ -212,6 +212,11 @@ static bool init_arm_motors(bool arming_from_gcs)
     // finally actually arm the motors
     motors.armed(true);
 
+#if COMPOUND == ENABLED
+    compound.enable();
+    compound.set_arm_status(true);
+#endif
+
     // log arming to dataflash
     Log_Write_Event(DATA_ARMED);
 
@@ -773,6 +778,10 @@ static void init_disarm_motors()
 
     // send disarm command to motors
     motors.armed(false);
+
+#if COMPOUND == ENABLED
+    compound.set_arm_status(false);
+#endif
 
     // save compass offsets learned by the EKF
     Vector3f magOffsets;
