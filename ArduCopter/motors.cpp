@@ -224,6 +224,11 @@ bool Copter::init_arm_motors(bool arming_from_gcs)
     // finally actually arm the motors
     motors.armed(true);
 
+#if COMPOUND == ENABLED
+    compound.enable();
+    compound.set_arm_status(true);
+#endif
+
     // log arming to dataflash
     Log_Write_Event(DATA_ARMED);
 
@@ -864,6 +869,13 @@ void Copter::init_disarm_motors()
 
 #if HIL_MODE != HIL_MODE_DISABLED || CONFIG_HAL_BOARD == HAL_BOARD_SITL
     gcs_send_text_P(SEVERITY_HIGH, PSTR("DISARMING MOTORS"));
+#endif
+
+    // send disarm command to motors
+    motors.armed(false);
+
+#if COMPOUND == ENABLED
+    compound.set_arm_status(false);
 #endif
 
     // save compass offsets learned by the EKF

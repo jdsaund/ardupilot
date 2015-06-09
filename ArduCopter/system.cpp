@@ -256,6 +256,11 @@ void Copter::init_ardupilot()
     heli_init();
 #endif
 
+    // init compound copter
+#if COMPOUND == ENABLED
+    compound.Init();
+#endif
+
     startup_ground(true);
 
     // we don't want writes to the serial port to cause us to pause

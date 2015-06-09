@@ -255,6 +255,10 @@ void Copter::fast_loop()
     update_heli_control_dynamics();
 #endif //HELI_FRAME
 
+#if COMPOUND == ENABLED
+    compound.output();
+#endif
+
     // send outputs to the motors library
     motors_output();
 

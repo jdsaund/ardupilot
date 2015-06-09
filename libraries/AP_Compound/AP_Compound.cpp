@@ -51,7 +51,7 @@ void AP_Compound::output()
         }
 
         // write the results to the servos
-        write_servo(_rudder_idx, _rudder_out);
+        write_servo(_rudder_idx, _rudder_out);  // write output for rudder
 }
 
 //
