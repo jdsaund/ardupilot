@@ -22,10 +22,13 @@ public:
                 _speed_hz(speed_hz),
                 _last_check_servo_map_ms(0),
                 _rudder_out(0),
+                _thrust_out(0),
                 _rudder_idx(RC_Channel_aux::k_none)
+
         {
             // initialise flags
             _flags.rudder_control = false;
+            _flags.thrust_control = false;
             _flags.armed          = false;
         };
 
@@ -39,6 +42,7 @@ public:
     void output();
 
     void set_rudder(int16_t yaw_in){_rudder_out = yaw_in;};
+    void set_throttle(int16_t thrust_in){_thrust_out = thrust_in;};
 
     void set_arm_status(bool arm_status){ _flags.armed = arm_status;};
 
@@ -52,6 +56,7 @@ private:
     // flags bitmask
     struct flags_type {
         bool    rudder_control          : 1;
+        bool    thrust_control          : 1;
         bool    armed                   : 1;
     } _flags;
 
@@ -59,7 +64,9 @@ private:
     uint16_t            _speed_hz;                  // speed in hz to send updates to motors
     uint32_t            _last_check_servo_map_ms;   // system time of latest call to check_servo_map function
     int16_t             _rudder_out;                // rudder output
+    int16_t             _thrust_out;                // rudder output
 
     RC_Channel_aux::Aux_servo_function_t    _rudder_idx; //fixed wing surfaces
+    RC_Channel_aux::Aux_servo_function_t    _thrust_idx; // thrust motor
 };
 #endif // __AP_COMPOUND_H__

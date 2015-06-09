@@ -25,24 +25,29 @@ extern const AP_HAL::HAL& hal;
 // init
 void AP_Compound::Init()
 {
-
         // enable aux servos on init
         _flags.rudder_control = true;
 
+        // keep thrust motor disabled until we arm
+        _flags.thrust_control = false;
+
         // setup channel functions for aux servos
         _rudder_idx = RC_Channel_aux::k_rudder;
+        _thrust_idx = RC_Channel_aux::k_motor;
 
         // move servo to its trim position
         RC_Channel_aux::set_radio_to_trim((RC_Channel_aux::Aux_servo_function_t) _rudder_idx);
 
-        // check which servos have been assigned
-        check_servo_map();
+        // keep thrust motor at minimum throttle
+        RC_Channel_aux::set_radio_to_min((RC_Channel_aux::Aux_servo_function_t) _thrust_idx);
 }
 
 // enable - starts allowing signals to be sent to motors
 void AP_Compound::enable()
 {
         // enable thrust motor
+
+        check_servo_map();
 }
 
 // sends commands to the motors
@@ -57,6 +62,14 @@ void AP_Compound::output()
 
         // write the results to the servos
         write_servo(_rudder_idx, _rudder_out);  // write output for rudder
+
+        if (_flags.armed == true){
+            // write the results to the motor
+            write_servo(_thrust_idx, _thrust_out);  // write output for rudder
+        } else {
+            // keep the thrust motor at minimum throttle
+            RC_Channel_aux::set_radio_to_min((RC_Channel_aux::Aux_servo_function_t) _thrust_idx);
+        }
 }
 
 //
