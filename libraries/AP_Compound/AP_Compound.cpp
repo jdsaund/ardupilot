@@ -25,18 +25,26 @@ extern const AP_HAL::HAL& hal;
 // init
 void AP_Compound::Init()
 {
+        check_servo_map();
+
         // enable aux servos on init
         _flags.rudder_control = true;
+        _flags.aileron_control = true;
+        _flags.elevator_control = true;
 
         // keep thrust motor disabled until we arm
         _flags.thrust_control = false;
 
         // setup channel functions for aux servos
         _rudder_idx = RC_Channel_aux::k_rudder;
+        _aileron_idx = RC_Channel_aux::k_aileron;
+        _elevator_idx = RC_Channel_aux::k_elevator;
         _thrust_idx = RC_Channel_aux::k_motor;
 
         // move servo to its trim position
         RC_Channel_aux::set_radio_to_trim((RC_Channel_aux::Aux_servo_function_t) _rudder_idx);
+        RC_Channel_aux::set_radio_to_trim((RC_Channel_aux::Aux_servo_function_t) _aileron_idx);
+        RC_Channel_aux::set_radio_to_trim((RC_Channel_aux::Aux_servo_function_t) _elevator_idx);
 
         // keep thrust motor at minimum throttle
         RC_Channel_aux::set_radio_to_min((RC_Channel_aux::Aux_servo_function_t) _thrust_idx);
@@ -46,8 +54,7 @@ void AP_Compound::Init()
 void AP_Compound::enable()
 {
         // enable thrust motor
-
-        check_servo_map();
+        _flags.thrust_control = true;
 }
 
 // sends commands to the motors
@@ -61,7 +68,9 @@ void AP_Compound::output()
         }
 
         // write the results to the servos
-        write_servo(_rudder_idx, _rudder_out);  // write output for rudder
+        write_servo(_rudder_idx, _rudder_out);      // write output for rudder
+        write_servo(_aileron_idx, _aileron_out);    // write output for aileron
+        write_servo(_elevator_idx, _elevator_out);  // write output for elevator
 
         if (_flags.armed == true){
             // write the results to the motor
@@ -85,6 +94,9 @@ void AP_Compound::output()
 void AP_Compound::check_servo_map()
 {
     _flags.rudder_control = RC_Channel_aux::function_assigned(_rudder_idx);
+    _flags.aileron_control = RC_Channel_aux::function_assigned(_aileron_idx);
+    _flags.elevator_control = RC_Channel_aux::function_assigned(_elevator_idx);
+    _flags.thrust_control = RC_Channel_aux::function_assigned(_thrust_idx);
 }
 
 // move_servo - moves servo with the given id to the specified output
