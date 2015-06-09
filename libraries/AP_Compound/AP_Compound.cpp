@@ -26,9 +26,14 @@ extern const AP_HAL::HAL& hal;
 void AP_Compound::Init()
 {
 
-        // init fixed wing servos
+        // enable aux servos on init
         _flags.rudder_control = true;
+
+        // setup channel functions for aux servos
         _rudder_idx = RC_Channel_aux::k_rudder;
+
+        // move servo to its trim position
+        RC_Channel_aux::set_radio_to_trim((RC_Channel_aux::Aux_servo_function_t) _rudder_idx);
 
         // check which servos have been assigned
         check_servo_map();
