@@ -171,6 +171,11 @@
 // key aircraft parameters passed to multiple libraries
 static AP_Vehicle::MultiCopter aparm;
 
+// params for airspeed
+#if AIRSPEED == ENABLED
+static AP_Vehicle::FixedWing aparmTR;
+#endif
+
 // Local modules
 #include "Parameters.h"
 
@@ -310,6 +315,12 @@ static AP_SerialManager serial_manager;
 static const uint8_t num_gcs = MAVLINK_COMM_NUM_BUFFERS;
 static GCS_MAVLINK gcs[MAVLINK_COMM_NUM_BUFFERS];
 
+////////////////////////////////////////////////////////////////////////////////
+// Airspeed Sensor
+////////////////////////////////////////////////////////////////////////////////
+#if AIRSPEED == ENABLED
+AP_Airspeed airspeed(aparmTR);
+#endif
 ////////////////////////////////////////////////////////////////////////////////
 // User variables
 ////////////////////////////////////////////////////////////////////////////////
@@ -749,6 +760,10 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
     { three_hz_loop,       133,     75 },   // 11
     { compass_accumulate,    8,    100 },   // 12
     { barometer_accumulate,  8,     90 },   // 13
+#if AIRSPEED == ENABLED
+    { read_airspeed,        40,   1200 },
+    { airspeed_ratio_update,400,  1000 },
+#endif
 #if FRAME_CONFIG == HELI_FRAME
     { check_dynamic_flight,  8,     75 },
 #endif
@@ -1108,6 +1123,40 @@ static void one_hz_loop()
     // enable/disable raw gyro/accel logging
     ins.set_raw_logging(should_log(MASK_LOG_IMU_RAW));
 }
+
+/*
+   once a second update the airspeed calibration ratio
+ */
+#if AIRSPEED == ENABLED
+static void airspeed_ratio_update(void)
+{
+    if (!airspeed.enabled() ||
+        gps.status() < AP_GPS::GPS_OK_FIX_3D ||
+        gps.ground_speed() < 4) {
+        // don't calibrate when not moving
+        return;
+    }
+    if (airspeed.get_airspeed() < aparmTR.airspeed_min &&
+        gps.ground_speed() < (uint32_t)aparmTR.airspeed_min) {
+        // don't calibrate when flying below the minimum airspeed. We
+        // check both airspeed and ground speed to catch cases where
+        // the airspeed ratio is way too low, which could lead to it
+        // never coming up again
+        return;
+    }
+
+    /*
+    if (abs(ahrs.roll_sensor) > roll_limit_cd ||
+        ahrs.pitch_sensor > aparmTR.pitch_limit_max_cd ||
+        ahrs.pitch_sensor < pitch_limit_min_cd) {
+        // don't calibrate when going beyond normal flight envelope
+        return;
+    }
+    */
+    const Vector3f &vg = gps.velocity();
+    airspeed.update_calibration(vg);
+}
+#endif
 
 // called at 50hz
 static void update_GPS(void)

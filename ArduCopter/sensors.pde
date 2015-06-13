@@ -121,6 +121,24 @@ static void update_optical_flow(void)
 }
 #endif  // OPTFLOW == ENABLED
 
+#if AIRSPEED == ENABLED
+static void read_airspeed(void)
+{
+    if (airspeed.enabled()) {
+        airspeed.read();
+        if (should_log(MASK_LOG_IMU)) {
+            Log_Write_Airspeed();
+        }
+    }
+}
+
+static void zero_airspeed(bool startup)
+{
+    airspeed.calibrate(startup);
+    gcs_send_text_P(SEVERITY_LOW,PSTR("zero airspeed calibrated"));
+}
+#endif
+
 // read_battery - check battery voltage and current and invoke failsafe if necessary
 // called at 10hz
 static void read_battery(void)

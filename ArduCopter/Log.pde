@@ -364,6 +364,14 @@ static void Log_Write_Cmd(const AP_Mission::Mission_Command &cmd)
     DataFlash.Log_Write_MavCmd(mission.num_commands(),mav_cmd);
 }
 
+#if AIRSPEED == ENABLED
+// Write a AIRSPEED packet
+static void Log_Write_Airspeed()
+{
+    DataFlash.Log_Write_Airspeed(airspeed);
+}
+#endif
+
 // Write an attitude packet
 static void Log_Write_Attitude()
 {
@@ -733,6 +741,11 @@ static void Log_Write_AutoTune(uint8_t axis, uint8_t tune_step, float rate_targe
 static void Log_Write_AutoTuneDetails(float angle_cd, float rate_cds) {}
 #endif
 static void Log_Write_Current() {}
+
+#if AIRSPEED == ENABLED
+static void Log_Write_Airspeed() {}
+#endif
+
 static void Log_Write_Attitude() {}
 static void Log_Write_Rate() {}
 static void Log_Write_MotBatt() {}

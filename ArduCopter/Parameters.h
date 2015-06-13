@@ -195,6 +195,10 @@ public:
         k_param_takeoff_trigger_dz,
         k_param_gcs3,            // 125
 
+        // 130: Airspeed
+        //
+        k_param_airspeed = 130,
+
         //
         // 140: Sensor parameters
         //
