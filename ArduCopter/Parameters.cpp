@@ -872,6 +872,12 @@ const AP_Param::Info Copter::var_info[] PROGMEM = {
     GOBJECT(parachute,		"CHUTE_", AP_Parachute),
 #endif
 
+#if AIRSPEED == ENABLED
+    // @Group: ARSPD_
+    // @Path: ../libraries/AP_Airspeed/AP_Airspeed.cpp
+    GOBJECT(airspeed,       "ARSPD_",   AP_Airspeed),
+#endif
+
     // @Group: LGR_
     // @Path: ../libraries/AP_LandingGear/AP_LandingGear.cpp
     GOBJECT(landinggear,    "LGR_", AP_LandingGear),

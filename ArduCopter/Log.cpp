@@ -353,6 +353,14 @@ void Copter::Log_Write_Performance()
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
+#if AIRSPEED == ENABLED
+// Write a AIRSPEED packet
+void Copter::Log_Write_Airspeed()
+{
+    DataFlash.Log_Write_Airspeed(airspeed);
+}
+#endif
+
 // Write an attitude packet
 void Copter::Log_Write_Attitude()
 {
@@ -820,6 +828,11 @@ void Copter::Log_Sensor_Health() {}
 #if FRAME_CONFIG == HELI_FRAME
 void Copter::Log_Write_Heli() {}
 #endif
+
+#if AIRSPEED == ENABLED
+void Copter::Log_Write_Airspeed() {}
+#endif
+
 
 #if OPTFLOW == ENABLED
 void Copter::Log_Write_Optflow() {}

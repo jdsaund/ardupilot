@@ -121,6 +121,9 @@ Copter::Copter(void) :
 #if AP_TERRAIN_AVAILABLE
     terrain(ahrs, mission, rally),
 #endif
+#if AIRSPEED == ENABLED
+    airspeed(aparmTR),
+#endif
     in_mavlink_delay(false),
     gcs_out_of_time(false),
     param_loader(var_info)

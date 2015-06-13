@@ -132,7 +132,6 @@ private:
     // key aircraft parameters passed to multiple libraries
     AP_Vehicle::MultiCopter aparm;
 
-
     // cliSerial isn't strictly necessary - it is an alias for hal.console. It may
     // be deprecated in favor of hal.console in later releases.
     AP_HAL::BetterStream* cliSerial;
@@ -481,6 +480,12 @@ private:
     AC_Sprayer sprayer;
 #endif
 
+    // params for airspeed
+#if AIRSPEED == ENABLED
+    AP_Vehicle::FixedWing aparmTR;
+    AP_Airspeed airspeed;
+#endif
+
     // EPM Cargo Griper
 #if EPM_ENABLED == ENABLED
     AP_EPM epm;
@@ -505,7 +510,7 @@ private:
     // true if we are out of time in our event timeslice
     bool gcs_out_of_time;
 
-    // Top-level logic
+    // Top-level logicairspeed
     // setup the var_info table
     AP_Param param_loader;
 
@@ -547,6 +552,9 @@ private:
     void update_super_simple_bearing(bool force_update);
     void read_AHRS(void);
     void update_altitude();
+#if AIRSPEED == ENABLED
+    void airspeed_ratio_update(void);
+#endif
     void set_home_state(enum HomeState new_home_state);
     bool home_is_set();
     void set_auto_armed(bool b);
@@ -610,6 +618,9 @@ private:
     void Log_Write_Nav_Tuning();
     void Log_Write_Control_Tuning();
     void Log_Write_Performance();
+#if AIRSPEED == ENABLED
+    void Log_Write_Airspeed(void);
+#endif
     void Log_Write_Attitude();
     void Log_Write_Rate();
     void Log_Write_MotBatt();
@@ -872,6 +883,10 @@ private:
     void init_compass();
     void init_optflow();
     void update_optical_flow(void);
+#if AIRSPEED == ENABLED
+    void read_airspeed(void);
+    void zero_airspeed(bool startup);
+#endif
     void read_battery(void);
     void read_receiver_rssi(void);
     void epm_update();

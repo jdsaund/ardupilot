@@ -127,6 +127,11 @@ void Copter::init_ardupilot()
 
     barometer.init();
 
+    // initialise airspeed sensor
+#if AIRSPEED == ENABLED
+    airspeed.init();
+#endif
+
     // Register the mavlink service callback. This will run
     // anytime there are more than 5ms remaining in a call to
     // hal.scheduler->delay.
@@ -311,6 +316,17 @@ void Copter::startup_ground(bool force_gyro_cal)
     // set landed flag
     set_land_complete(true);
     set_land_complete_maybe(true);
+
+#if AIRSPEED == ENABLED
+    if (airspeed.enabled()) {
+        // initialize airspeed sensor
+        // --------------------------
+        zero_airspeed(true);
+    } else {
+        gcs_send_text_P(SEVERITY_LOW,PSTR("NO airspeed"));
+    }
+#endif
+
 }
 
 // position_ok - returns true if the horizontal absolute position is ok and home position is set

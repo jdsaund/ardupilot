@@ -202,6 +202,10 @@ public:
         k_param_rtl_speed_cms = 135,
         k_param_fs_batt_curr_rtl, // 136
 
+        // 130: Airspeed
+        //
+        k_param_airspeed = 130,
+
         //
         // 140: Sensor parameters
         //
