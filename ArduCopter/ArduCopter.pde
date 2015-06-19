@@ -1,5 +1,5 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-bv,sjabvaskdjvbasklj
+
 #define THISFIRMWARE "APM:Copter V3.3-rc5"
 /*
    This program is free software: you can redistribute it and/or modify
