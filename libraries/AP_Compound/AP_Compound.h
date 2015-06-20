@@ -51,7 +51,7 @@ public:
     void set_rudder(int16_t yaw_in)         {_rudder_out = yaw_in;};
     void set_aileron(int16_t roll_in)       {_aileron_out = roll_in;};
     void set_elevator(int16_t pitch_in)     {_elevator_out = pitch_in;};
-    void set_throttle(int16_t thrust_in)    {_thrust_out = thrust_in;};
+    void set_thrust(int16_t thrust_in)      {_thrust_out = thrust_in;};
 
     void set_arm_status(bool arm_status)    { _flags.armed = arm_status;};
 

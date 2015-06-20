@@ -887,6 +887,9 @@ private:
     void read_airspeed(void);
     void zero_airspeed(bool startup);
 #endif
+#if COMPOUND == ENABLED
+    void compound_radio_passthrough(void);
+#endif
     void read_battery(void);
     void read_receiver_rssi(void);
     void epm_update();
