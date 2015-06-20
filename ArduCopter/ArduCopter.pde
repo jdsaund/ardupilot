@@ -182,6 +182,9 @@ static AP_Vehicle::FixedWing aparmTR;
 // Heli modules
 #include "heli.h"
 
+// Compound copter modules
+#include "compound.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 // cliSerial
 ////////////////////////////////////////////////////////////////////////////////
@@ -766,6 +769,9 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
 #endif
 #if FRAME_CONFIG == HELI_FRAME
     { check_dynamic_flight,  8,     75 },
+#endif
+#if COMPOUND == ENABLED
+    { compound_radio_passthrough,  8,     75 },
 #endif
     { update_notify,         8,     90 },   // 14
     { one_hz_loop,         400,    100 },   // 15
