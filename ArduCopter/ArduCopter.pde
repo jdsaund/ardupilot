@@ -457,13 +457,6 @@ static MOTOR_CLASS motors(MAIN_LOOP_RATE);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// Compound Copter Output
-////////////////////////////////////////////////////////////////////////////////
-#if COMPOUND == ENABLED
-static AP_Compound compound(MAIN_LOOP_RATE);
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
 // GPS variables
 ////////////////////////////////////////////////////////////////////////////////
 // We use atan2 and other trig techniques to calaculate angles
@@ -629,6 +622,14 @@ AC_PosControl pos_control(ahrs, inertial_nav, motors, attitude_control,
                         g.p_pos_xy, g.pi_vel_xy);
 static AC_WPNav wp_nav(inertial_nav, ahrs, pos_control, attitude_control);
 static AC_Circle circle_nav(inertial_nav, ahrs, pos_control);
+
+////////////////////////////////////////////////////////////////////////////////
+// Compound Copter Output
+////////////////////////////////////////////////////////////////////////////////
+#if COMPOUND == ENABLED
+static AP_Compound compound(MAIN_LOOP_RATE, attitude_control, ahrs, aparm, motors,
+                            g.pid_aileron, g.pid_elevator, g.pid_rudder);
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // Performance monitoring
@@ -909,12 +910,13 @@ static void fast_loop()
 
     // run low level rate controllers that only require IMU data
     attitude_control.rate_controller_run();
-    
+
 #if FRAME_CONFIG == HELI_FRAME
     update_heli_control_dynamics();
 #endif //HELI_FRAME
 
 #if COMPOUND == ENABLED
+    compound.rate_controller_run();
     compound.output();
 #endif
 

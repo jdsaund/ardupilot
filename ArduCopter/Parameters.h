@@ -168,6 +168,13 @@ public:
         k_param_motors = 90,
 
         //
+        // 95: Compound
+        //
+        k_param_pid_aileron = 95,
+        k_param_pid_elevator,
+        k_param_pid_rudder,
+
+        //
         // 100: Inertial Nav
         //
         k_param_inertial_nav = 100, // deprecated
@@ -475,6 +482,13 @@ public:
     AC_PID                  pid_rate_pitch;
     AC_PID                  pid_rate_yaw;
 #endif
+
+#if COMPOUND == ENABLED
+    AC_HELI_PID             pid_aileron;
+    AC_HELI_PID             pid_elevator;
+    AC_HELI_PID             pid_rudder;
+#endif
+
     AC_PI_2D                pi_vel_xy;
 
     AC_P                    p_vel_z;
@@ -543,6 +557,11 @@ public:
         pid_rate_yaw            (RATE_YAW_P,      RATE_YAW_I,       RATE_YAW_D,     RATE_YAW_IMAX,      RATE_YAW_FILT_HZ,   MAIN_LOOP_SECONDS),
 #endif
 
+#if COMPOUND == ENABLED
+        pid_aileron             (RATE_AIL_P,      RATE_AIL_I,       RATE_AIL_D,     RATE_AIL_IMAX,      RATE_AIL_FILT_HZ,   MAIN_LOOP_SECONDS, RATE_AIL_FF),
+        pid_elevator            (RATE_ELE_P,      RATE_ELE_I,       RATE_ELE_D,     RATE_ELE_IMAX,      RATE_ELE_FILT_HZ,   MAIN_LOOP_SECONDS, RATE_ELE_FF),
+        pid_rudder              (RATE_RUD_P,      RATE_RUD_I,       RATE_RUD_D,     RATE_RUD_IMAX,      RATE_RUD_FILT_HZ,   MAIN_LOOP_SECONDS, RATE_RUD_FF),
+#endif
         pi_vel_xy               (VEL_XY_P,        VEL_XY_I,                         VEL_XY_IMAX,        VEL_XY_FILT_HZ,     WPNAV_LOITER_UPDATE_TIME),
 
         p_vel_z                 (VEL_Z_P),
