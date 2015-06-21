@@ -8,9 +8,6 @@
 
 void Copter::compound_radio_passthrough(void)
 {
-    compound.set_rudder(channel_yaw->control_in);
-    compound.set_aileron(channel_roll->control_in);
-    compound.set_elevator(channel_pitch->control_in);
-    compound.set_thrust(channel_throttle->control_in);
+    compound.passthrough_to_servos(channel_roll->control_in, channel_pitch->control_in, channel_yaw->control_in);
 }
 #endif  // COMPOUND == ENABLED

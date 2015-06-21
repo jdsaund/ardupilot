@@ -42,7 +42,9 @@ Copter::Copter(void) :
     motors(MAIN_LOOP_RATE),
 #endif
 #if COMPOUND == ENABLED
-    compound(MAIN_LOOP_RATE),
+    compound(MAIN_LOOP_RATE, attitude_control, ahrs, aparm, motors,
+             g.pid_aileron, g.pid_elevator, g.pid_rudder,
+             g.compound_servo_ail, g.compound_servo_ele, g.compound_servo_rud),
 #endif
     scaleLongDown(1),
     wp_bearing(0),

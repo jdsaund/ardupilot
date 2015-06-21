@@ -129,6 +129,29 @@
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////
+// Compound Copter defaults
+#if COMPOUND == ENABLED
+  # define RATE_AIL_P                           0.02
+  # define RATE_AIL_I                           0.5
+  # define RATE_AIL_D                           0.001
+  # define RATE_AIL_IMAX                        4500
+  # define RATE_AIL_FF                          0.05
+  # define RATE_AIL_FILT_HZ                     20.0f
+  # define RATE_ELE_P                           0.02
+  # define RATE_ELE_I                           0.5
+  # define RATE_ELE_D                           0.001
+  # define RATE_ELE_IMAX                        4500
+  # define RATE_ELE_FF                          0.05
+  # define RATE_ELE_FILT_HZ                     20.0f
+  # define RATE_RUD_P                           0.15
+  # define RATE_RUD_I                           0.100
+  # define RATE_RUD_D                           0.003
+  # define RATE_RUD_IMAX                        4500
+  # define RATE_RUD_FF                          0.02
+  # define RATE_RUD_FILT_HZ                     20.0f
+#endif
+
+/////////////////////////////////////////////////////////////////////////////////
 // Y6 defaults
 #if FRAME_CONFIG == Y6_FRAME
   # define RATE_ROLL_P                  0.1f

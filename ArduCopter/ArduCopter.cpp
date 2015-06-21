@@ -117,9 +117,6 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] PROGMEM = {
 #if FRAME_CONFIG == HELI_FRAME
     { SCHED_TASK(check_dynamic_flight),  8,     75 },
 #endif
-#if COMPOUND == ENABLED
-    { SCHED_TASK(compound_radio_passthrough), 8,75 },
-#endif
     { SCHED_TASK(update_notify),         8,     90 },
     { SCHED_TASK(one_hz_loop),         400,    100 },
     { SCHED_TASK(ekf_check),            40,     75 },
@@ -263,6 +260,7 @@ void Copter::fast_loop()
 #endif //HELI_FRAME
 
 #if COMPOUND == ENABLED
+    compound.rate_controller_run();
     compound.output();
 #endif
 
