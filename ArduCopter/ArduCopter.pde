@@ -457,13 +457,6 @@ static MOTOR_CLASS motors(MAIN_LOOP_RATE);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// Compound Copter Output
-////////////////////////////////////////////////////////////////////////////////
-#if COMPOUND == ENABLED
-static AP_Compound compound(MAIN_LOOP_RATE);
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
 // GPS variables
 ////////////////////////////////////////////////////////////////////////////////
 // We use atan2 and other trig techniques to calaculate angles
@@ -631,6 +624,15 @@ static AC_WPNav wp_nav(inertial_nav, ahrs, pos_control, attitude_control);
 static AC_Circle circle_nav(inertial_nav, ahrs, pos_control);
 
 ////////////////////////////////////////////////////////////////////////////////
+// Compound Copter Output
+////////////////////////////////////////////////////////////////////////////////
+#if COMPOUND == ENABLED
+static AP_Compound compound(MAIN_LOOP_RATE, attitude_control, ahrs, aparm, motors,
+                            g.pid_aileron, g.pid_elevator, g.pid_rudder,
+                            g.compound_servo_ail, g.compound_servo_ele, g.compound_servo_rud);
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 // Performance monitoring
 ////////////////////////////////////////////////////////////////////////////////
 static int16_t pmTest1;
@@ -770,9 +772,6 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
 #if FRAME_CONFIG == HELI_FRAME
     { check_dynamic_flight,  8,     75 },
 #endif
-#if COMPOUND == ENABLED
-    { compound_radio_passthrough,  8,     75 },
-#endif
     { update_notify,         8,     90 },   // 14
     { one_hz_loop,         400,    100 },   // 15
     { ekf_check,            40,     75 },   // 16
@@ -909,12 +908,13 @@ static void fast_loop()
 
     // run low level rate controllers that only require IMU data
     attitude_control.rate_controller_run();
-    
+
 #if FRAME_CONFIG == HELI_FRAME
     update_heli_control_dynamics();
 #endif //HELI_FRAME
 
 #if COMPOUND == ENABLED
+    compound.rate_controller_run();
     compound.output();
 #endif
 
