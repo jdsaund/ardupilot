@@ -18,9 +18,12 @@ public:
     // Constructor
     AP_Compound(uint16_t    loop_rate,
                 uint16_t    speed_hz = AP_COMPOUND_SPEED_DEFAULT):
+                _rudder_idx(RC_Channel_aux::k_none),
+                _aileron_idx(RC_Channel_aux::k_none),
+                _elevator_idx(RC_Channel_aux::k_none),
+                _thrust_idx(RC_Channel_aux::k_none),
                 _loop_rate(loop_rate),
                 _speed_hz(speed_hz),
-                _rudder_idx(RC_Channel_aux::k_none),
                 _last_check_servo_map_ms(0),
                 _rudder_out(0),
                 _aileron_out(0),
@@ -64,6 +67,14 @@ private:
     RC_Channel_aux::Aux_servo_function_t    _elevator_idx; // fixed wing surfaces
     RC_Channel_aux::Aux_servo_function_t    _thrust_idx; // thrust motor
 
+    uint16_t            _loop_rate;                 // rate at which output() function is called (normally 400hz)
+    uint16_t            _speed_hz;                  // speed in hz to send updates to motors
+    uint32_t            _last_check_servo_map_ms;   // system time of latest call to check_servo_map function
+    int16_t             _rudder_out;                // rudder output
+    int16_t             _aileron_out;               // aileron output
+    int16_t             _elevator_out;              // elevator output
+    int16_t             _thrust_out;                // rudder output
+
     // flags bitmask
     struct flags_type {
         bool    rudder_control          : 1;
@@ -72,14 +83,6 @@ private:
         bool    thrust_control          : 1;
         bool    armed                   : 1;
     } _flags;
-
-    uint16_t            _loop_rate;                 // rate at which output() function is called (normally 400hz)
-    uint16_t            _speed_hz;                  // speed in hz to send updates to motors
-    int16_t             _rudder_out;                // rudder output
-    int16_t             _aileron_out;               // aileron output
-    int16_t             _elevator_out;              // elevator output
-    int16_t             _thrust_out;                // rudder output
-    uint32_t            _last_check_servo_map_ms;   // system time of latest call to check_servo_map function
 
 };
 #endif // __AP_COMPOUND_H__
