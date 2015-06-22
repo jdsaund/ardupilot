@@ -38,9 +38,6 @@ public:
                 RC_Channel& ele_servo,
                 RC_Channel& rud_servo):
 
-                _servo_ail(ail_servo),
-                _servo_ele(ele_servo),
-                _servo_rud(rud_servo),
                 _ahrs(ahrs),
                 _aparm(aparm),
                 _motors(motors),
@@ -48,9 +45,11 @@ public:
                 _pid_aileron(pid_aileron),
                 _pid_elevator(pid_elevator),
                 _pid_rudder(pid_rudder),
+                _servo_ail(ail_servo),
+                _servo_ele(ele_servo),
+                _servo_rud(rud_servo),
                 _loop_rate(loop_rate),
                 _speed_hz(AP_COMPOUND_SPEED_DEFAULT),
-                _last_check_servo_map_ms(0),
                 _aileron_out(0),
                 _elevator_out(0),
                 _rudder_out(0),
@@ -126,7 +125,6 @@ private:
     // internal objects
     uint16_t            _loop_rate;                 // rate at which output() function is called (normally 400hz)
     uint16_t            _speed_hz;                  // speed in hz to send updates to motors
-    uint32_t            _last_check_servo_map_ms;   // system time of latest call to check_servo_map function
     int16_t             _aileron_out;               // aileron output
     int16_t             _elevator_out;              // elevator output
     int16_t             _rudder_out;                // rudder output
