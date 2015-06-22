@@ -773,7 +773,7 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
     { check_dynamic_flight,  8,     75 },
 #endif
 #if COMPOUND == ENABLED
-    { compound_radio_passthrough,  8,     75 },
+//    { compound_radio_passthrough,  8,     75 },
 #endif
     { update_notify,         8,     90 },   // 14
     { one_hz_loop,         400,    100 },   // 15

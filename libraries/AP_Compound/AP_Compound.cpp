@@ -96,6 +96,7 @@ void AP_Compound::rate_controller_run()
         set_elevator(_passthrough_elevator);
         set_rudder(_passthrough_rudder);
     } else {
+        update_rate_bf_targets();
         rate_bf_to_motor_roll_pitch(_rate_bf_target.x, _rate_bf_target.y);
     }
 }
@@ -196,9 +197,9 @@ void AP_Compound::passthrough_to_servos(int16_t roll_passthrough, int16_t pitch_
 void AP_Compound::write_servos()
 {
     // servo outputs
-    _servo_ail.servo_out = _aileron_out;
-    _servo_ele.servo_out = _elevator_out;
-    _servo_rud.servo_out = _rudder_out;
+    _servo_ail.servo_out = _aileron_out + (_servo_ail.radio_trim-1500) + 500;
+    _servo_ele.servo_out = _elevator_out + (_servo_ele.radio_trim-1500) + 500;
+    _servo_rud.servo_out = _rudder_out + (_servo_rud.radio_trim-1500) + 500;
 
     // use servo_out to calculate pwm_out and radio_out
     _servo_ail.calc_pwm();
@@ -210,3 +211,4 @@ void AP_Compound::write_servos()
     hal.rcout->write(AP_COMPOUND_RC_CH_ELE, _servo_ele.radio_out);
     hal.rcout->write(AP_COMPOUND_RC_CH_RUD, _servo_rud.radio_out);
 }
+

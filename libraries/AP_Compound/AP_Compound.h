@@ -103,6 +103,8 @@ private:
     // outputs are sent directly to motor class
     void rate_bf_to_motor_roll_pitch(float rate_roll_target_cds, float rate_pitch_target_cds);
 
+    void update_rate_bf_targets() {_rate_bf_target = _attitude_control.rate_bf_targets();};
+
     // send the output from the attitude controller to the motors
     void set_aileron(int16_t roll_in)       {_aileron_out = roll_in;};
     void set_elevator(int16_t pitch_in)     {_elevator_out = pitch_in;};
