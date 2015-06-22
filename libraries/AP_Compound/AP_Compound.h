@@ -17,25 +17,30 @@
 #define AP_COMPOUND_RATE_INTEGRATOR_LEAK_RATE   0.02f
 #define AP_COMPOUND_RATE_FF_FILTER              10.0f
 
+#define AP_COMPOUND_RC_CH_AIL                        CH_9
+#define AP_COMPOUND_RC_CH_ELE                        CH_10
+#define AP_COMPOUND_RC_CH_RUD                        CH_11
+
 /// @class      AP_Compound
 class AP_Compound {
 public:
 
     // Constructor
     AP_Compound(uint16_t loop_rate,
-                //uint16_t speed_hz = AP_COMPOUND_SPEED_DEFAULT,
                 AC_AttitudeControl& attitude_control,
                 AP_AHRS &ahrs,
                 const AP_Vehicle::MultiCopter &aparm,
                 AP_Motors& motors,
                 AC_HELI_PID& pid_aileron,
                 AC_HELI_PID& pid_elevator,
-                AC_HELI_PID& pid_rudder):
+                AC_HELI_PID& pid_rudder,
+                RC_Channel& ail_servo,
+                RC_Channel& ele_servo,
+                RC_Channel& rud_servo):
 
-                _aileron_idx(RC_Channel_aux::k_none),
-                _elevator_idx(RC_Channel_aux::k_none),
-                _rudder_idx(RC_Channel_aux::k_none),
-                _thrust_idx(RC_Channel_aux::k_none),
+                _servo_ail(ail_servo),
+                _servo_ele(ele_servo),
+                _servo_rud(rud_servo),
                 _ahrs(ahrs),
                 _aparm(aparm),
                 _motors(motors),
@@ -44,7 +49,7 @@ public:
                 _pid_elevator(pid_elevator),
                 _pid_rudder(pid_rudder),
                 _loop_rate(loop_rate),
-                //_speed_hz(speed_hz),
+                _speed_hz(AP_COMPOUND_SPEED_DEFAULT),
                 _last_check_servo_map_ms(0),
                 _aileron_out(0),
                 _elevator_out(0),
@@ -59,10 +64,6 @@ public:
                     //AP_Param::setup_object_defaults(this, var_info);
 
                     // initialise flags
-                    _flags.aileron_control  = false;
-                    _flags.elevator_control = false;
-                    _flags.rudder_control   = false;
-                    _flags.thrust_control   = false;
                     _flags.armed            = false;
                     _flags.limit_roll       = false;
                     _flags.limit_pitch      = false;
@@ -73,6 +74,8 @@ public:
 
     // init
     void Init();
+
+    void set_update_rate( uint16_t speed_hz );
 
     // enable - starts allowing signals to be sent to motors
     void enable();
@@ -88,6 +91,7 @@ public:
 
     void passthrough_to_servos(int16_t roll_passthrough, int16_t pitch_passthrough, int16_t yaw_passthrough);
 
+    void write_servos();
 protected:
 
 private:
@@ -105,15 +109,7 @@ private:
     void set_rudder(int16_t yaw_in)         {_rudder_out = yaw_in;};
     void set_thrust(int16_t thrust_in)      {_thrust_out = thrust_in;};
 
-    void check_servo_map();
-    void write_servo(uint8_t function_idx, int16_t servo_out);
-
-    RC_Channel_aux::Aux_servo_function_t    _aileron_idx;
-    RC_Channel_aux::Aux_servo_function_t    _elevator_idx;
-    RC_Channel_aux::Aux_servo_function_t    _rudder_idx;
-    RC_Channel_aux::Aux_servo_function_t    _thrust_idx;
-
-    // external libraries
+    // external objects
     const AP_AHRS&      _ahrs;
     const AP_Vehicle::MultiCopter &_aparm;
     AP_Motors&          _motors;
@@ -121,9 +117,13 @@ private:
     AC_PID&             _pid_aileron;
     AC_PID&             _pid_elevator;
     AC_PID&             _pid_rudder;
+    RC_Channel&         _servo_ail;
+    RC_Channel&         _servo_ele;
+    RC_Channel&         _servo_rud;
 
+    // internal objects
     uint16_t            _loop_rate;                 // rate at which output() function is called (normally 400hz)
-    //uint16_t            _speed_hz;                  // speed in hz to send updates to motors
+    uint16_t            _speed_hz;                  // speed in hz to send updates to motors
     uint32_t            _last_check_servo_map_ms;   // system time of latest call to check_servo_map function
     int16_t             _aileron_out;               // aileron output
     int16_t             _elevator_out;              // elevator output
@@ -144,10 +144,6 @@ private:
 
     // flags bitmask
     struct flags_type {
-        uint8_t    aileron_control         : 1;
-        uint8_t    elevator_control        : 1;
-        uint8_t    rudder_control          : 1;
-        uint8_t    thrust_control          : 1;
         uint8_t    armed                   : 1;
         uint8_t    limit_roll              : 1;
         uint8_t    limit_pitch             : 1;

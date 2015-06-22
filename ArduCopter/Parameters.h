@@ -168,8 +168,11 @@ public:
         k_param_motors = 90,
 
         //
-        // 95: Compound
+        // 91: Compound
         //
+        k_param_compound_servo_ail = 91,
+        k_param_compound_servo_ele,
+        k_param_compound_servo_rud,
         k_param_pid_aileron = 95,
         k_param_pid_elevator,
         k_param_pid_rudder,
@@ -432,6 +435,10 @@ public:
     AP_Int16        heli_stab_col_min;                                          // min collective while pilot directly controls collective in stabilize mode
     AP_Int16        heli_stab_col_max;                                          // min collective while pilot directly controls collective in stabilize mode
 #endif
+#if COMPOUND ==         ENABLED
+    // Compound Copter
+    RC_Channel      compound_servo_ail, compound_servo_ele, compound_servo_rud;     // servos for fixed wing surfaces
+#endif
 #if FRAME_CONFIG ==     SINGLE_FRAME
     // Single
     RC_Channel      single_servo_1, single_servo_2, single_servo_3, single_servo_4;     // servos for four flaps
@@ -513,6 +520,11 @@ public:
         heli_servo_2        (CH_2),
         heli_servo_3        (CH_3),
         heli_servo_4        (CH_4),
+#endif
+#if COMPOUND ==         ENABLED
+        compound_servo_ail  (CH_9),
+        compound_servo_ele  (CH_10),
+        compound_servo_rud  (CH_11),
 #endif
 #if FRAME_CONFIG ==     SINGLE_FRAME
         single_servo_1        (CH_1),

@@ -519,6 +519,16 @@ const AP_Param::Info var_info[] PROGMEM = {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #if COMPOUND ==     ENABLED
+    // @Group: CPND_AIL
+    // @Path: ../libraries/RC_Channel/RC_Channel.cpp
+    GGROUP(compound_servo_ail,    "CPND_AIL_", RC_Channel),
+    // @Group: CPND_ELE
+    // @Path: ../libraries/RC_Channel/RC_Channel.cpp
+    GGROUP(compound_servo_ele,    "CPND_ELE_", RC_Channel),
+    // @Group: CPND_RUD
+    // @Path: ../libraries/RC_Channel/RC_Channel.cpp
+    GGROUP(compound_servo_rud,    "CPND_RUD_", RC_Channel),
+
     // compound copter PID controller
     //---------------
 

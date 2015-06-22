@@ -628,7 +628,8 @@ static AC_Circle circle_nav(inertial_nav, ahrs, pos_control);
 ////////////////////////////////////////////////////////////////////////////////
 #if COMPOUND == ENABLED
 static AP_Compound compound(MAIN_LOOP_RATE, attitude_control, ahrs, aparm, motors,
-                            g.pid_aileron, g.pid_elevator, g.pid_rudder);
+                            g.pid_aileron, g.pid_elevator, g.pid_rudder,
+                            g.compound_servo_ail, g.compound_servo_ele, g.compound_servo_rud);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
