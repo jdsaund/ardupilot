@@ -42,23 +42,19 @@ public:
 
     // Constructor
     AP_RotaryEncoder():
-        _last_timestamp(0),
-        _last_pulse_time_ms(0),
-        _good_sample_count(0)
+        _angle_cds(0)
         {};
 
     // static detection function
-    static bool detect();
+    static bool input_pin_free();
 
     void init();
 
     void read(void);
 
 private:
+    struct pwm_input_s _pwm;
     int _fd;
-    uint64_t _last_timestamp;
-    uint64_t _last_pulse_time_ms;
-    uint32_t _good_sample_count;
     uint32_t _pulse_width;
     uint32_t _period;
     int32_t _angle_cds;
