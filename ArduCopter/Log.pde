@@ -372,6 +372,14 @@ static void Log_Write_Airspeed()
 }
 #endif
 
+#if ROTARY_ENCODER == ENABLED
+// Write a ROTARY ENCODER packet
+static void Log_Write_Rotary_Encoder()
+{
+    DataFlash.Log_Write_Rotary_Encoder(rotary_encoder);
+}
+#endif
+
 // Write an attitude packet
 static void Log_Write_Attitude()
 {
@@ -744,6 +752,10 @@ static void Log_Write_Current() {}
 
 #if AIRSPEED == ENABLED
 static void Log_Write_Airspeed() {}
+#endif
+
+#if ROTARY_ENCODER == ENABLED
+static void Log_Write_Rotary_Encoder() {}
 #endif
 
 static void Log_Write_Attitude() {}

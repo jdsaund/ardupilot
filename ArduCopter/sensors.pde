@@ -139,6 +139,17 @@ static void zero_airspeed(bool startup)
 }
 #endif
 
+#if ROTARY_ENCODER == ENABLED
+static void read_rotary_encoder(void)
+{
+    rotary_encoder.read();
+
+    if (should_log(MASK_LOG_IMU)) {
+    Log_Write_Rotary_Encoder();
+    }
+}
+#endif
+
 // read_battery - check battery voltage and current and invoke failsafe if necessary
 // called at 10hz
 static void read_battery(void)
