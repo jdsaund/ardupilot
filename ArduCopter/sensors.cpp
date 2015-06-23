@@ -154,6 +154,17 @@ void Copter::zero_airspeed(bool startup)
 }
 #endif
 
+#if ROTARY_ENCODER == ENABLED
+void Copter::read_rotary_encoder(void)
+{
+    rotary_encoder.read();
+
+    if (should_log(MASK_LOG_IMU)) {
+    Log_Write_Rotary_Encoder();
+    }
+}
+#endif
+
 // read_battery - check battery voltage and current and invoke failsafe if necessary
 // called at 10hz
 void Copter::read_battery(void)

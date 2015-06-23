@@ -65,3 +65,4 @@ LIBRARIES += AP_LandingGear
 LIBRARIES += AP_Terrain
 LIBRARIES += AP_RPM
 LIBRARIES += AP_Compound
+LIBRARIES += AP_RotaryEncoder

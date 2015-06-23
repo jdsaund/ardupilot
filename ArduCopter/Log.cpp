@@ -353,11 +353,19 @@ void Copter::Log_Write_Performance()
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
+// Write an AIRSPEED packet
 #if AIRSPEED == ENABLED
-// Write a AIRSPEED packet
 void Copter::Log_Write_Airspeed()
 {
     DataFlash.Log_Write_Airspeed(airspeed);
+}
+#endif
+
+// Write a ROTARY ENCODER packet
+#if ROTARY_ENCODER == ENABLED
+void Copter::Log_Write_Rotary_Encoder()
+{
+    DataFlash.Log_Write_Rotary_Encoder(rotary_encoder);
 }
 #endif
 
@@ -833,6 +841,9 @@ void Copter::Log_Write_Heli() {}
 void Copter::Log_Write_Airspeed() {}
 #endif
 
+#if ROTARY_ENCODER == ENABLED
+void Copter::Log_Write_Rotary_Encoder() {}
+#endif
 
 #if OPTFLOW == ENABLED
 void Copter::Log_Write_Optflow() {}

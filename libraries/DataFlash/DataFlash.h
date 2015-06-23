@@ -16,6 +16,7 @@
 #include <AP_Vehicle/AP_Vehicle.h>
 #include <AP_Mission/AP_Mission.h>
 #include <AP_Airspeed/AP_Airspeed.h>
+#include <AP_RotaryEncoder/AP_RotaryEncoder.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>
 #include <AP_RPM/AP_RPM.h>
 #include <stdint.h>
@@ -87,6 +88,7 @@ public:
     void Log_Write_Camera(const AP_AHRS &ahrs, const AP_GPS &gps, const Location &current_loc);
     void Log_Write_ESC(void);
     void Log_Write_Airspeed(AP_Airspeed &airspeed);
+    void Log_Write_Rotary_Encoder(AP_RotaryEncoder &rotary_encoder);
     void Log_Write_Attitude(AP_AHRS &ahrs, const Vector3f &targets);
     void Log_Write_Current(const AP_BattMonitor &battery, int16_t throttle);
     void Log_Write_Compass(const Compass &compass);
@@ -579,6 +581,14 @@ struct PACKED log_AIRSPEED {
     float   offset;
 };
 
+struct PACKED log_ROTARY_ENCODER {
+    LOG_PACKET_HEADER;
+    uint32_t timestamp;
+    int32_t angle_cds;
+    uint32_t pulse_width;
+    uint32_t period;
+};
+
 struct PACKED log_ACCEL {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -660,6 +670,8 @@ Format characters in the format string for binary log messages
       "CAM", "QIHLLeeccC","TimeUS,GPSTime,GPSWeek,Lat,Lng,Alt,RelAlt,Roll,Pitch,Yaw" }, \
     { LOG_ARSP_MSG, sizeof(log_AIRSPEED), \
       "ARSP",  "Qffcff",   "TimeUS,Airspeed,DiffPress,Temp,RawPress,Offset" }, \
+    { LOG_RE_MSG, sizeof(log_ROTARY_ENCODER), \
+      "RE",  "IiII",   "TimeMS,AngleCDs,PulseWidth,Period" }, \
     { LOG_CURRENT_MSG, sizeof(log_Current), \
       "CURR", "QhhhHfh","TimeUS,Throttle,Volt,Curr,Vcc,CurrTot,Volt2" },\
 	{ LOG_ATTITUDE_MSG, sizeof(log_Attitude),\
@@ -837,7 +849,8 @@ enum LogMessages {
     LOG_IMUDT2_MSG,
     LOG_IMUDT3_MSG,
     LOG_ORGN_MSG,
-    LOG_RPM_MSG
+    LOG_RPM_MSG,
+    LOG_RE_MSG
 };
 
 enum LogOriginType {

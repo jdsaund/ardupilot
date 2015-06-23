@@ -105,6 +105,9 @@
 #if COMPOUND == ENABLED
 #include <AP_Compound/AP_Compound.h>        // Compound copter library
 #endif
+#if ROTARY_ENCODER == ENABLED
+#include <AP_RotaryEncoder/AP_RotaryEncoder.h>        // Compound copter library
+#endif
 #include <AP_LandingGear/AP_LandingGear.h>     // Landing Gear library
 #include <AP_Terrain/AP_Terrain.h>
 #include <AP_RPM/AP_RPM.h>
@@ -312,6 +315,10 @@ private:
     // Compound Copter output
 #if COMPOUND == ENABLED
     AP_Compound compound;
+#endif
+
+#if ROTARY_ENCODER == ENABLED
+    AP_RotaryEncoder rotary_encoder;
 #endif
 
     // GPS variables
@@ -555,6 +562,9 @@ private:
 #if AIRSPEED == ENABLED
     void airspeed_ratio_update(void);
 #endif
+#if ROTARY_ENCODER == ENABLED
+    void read_rotary_encoder(void);
+#endif
     void set_home_state(enum HomeState new_home_state);
     bool home_is_set();
     void set_auto_armed(bool b);
@@ -619,7 +629,10 @@ private:
     void Log_Write_Control_Tuning();
     void Log_Write_Performance();
 #if AIRSPEED == ENABLED
-    void Log_Write_Airspeed(void);
+    void Log_Write_Airspeed();
+#endif
+#if ROTARY_ENCODER == ENABLED
+    void Log_Write_Rotary_Encoder();
 #endif
     void Log_Write_Attitude();
     void Log_Write_Rate();

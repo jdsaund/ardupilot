@@ -114,6 +114,9 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] PROGMEM = {
     { SCHED_TASK(read_airspeed),        40,   1200 },
     { SCHED_TASK(airspeed_ratio_update),400,  1000 },
 #endif
+#if ROTARY_ENCODER == ENABLED
+    { SCHED_TASK(read_rotary_encoder),  40,   1200 },
+#endif
 #if FRAME_CONFIG == HELI_FRAME
     { SCHED_TASK(check_dynamic_flight),  8,     75 },
 #endif

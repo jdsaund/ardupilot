@@ -132,6 +132,11 @@ void Copter::init_ardupilot()
     airspeed.init();
 #endif
 
+    // initialise rotary encoder
+#if ROTARY_ENCODER == ENABLED
+    rotary_encoder.init();
+#endif
+
     // Register the mavlink service callback. This will run
     // anytime there are more than 5ms remaining in a call to
     // hal.scheduler->delay.
