@@ -133,6 +133,7 @@
 #include <AP_Camera.h>          // Photo or video camera
 #include <AP_Mount.h>           // Camera/Antenna mount
 #include <AP_Airspeed.h>        // needed for AHRS build
+#include <AP_RotaryEncoder.h>   // Rotary Encoder
 #include <AP_Vehicle.h>         // needed for AHRS build
 #include <AP_InertialNav.h>     // ArduPilot Mega inertial navigation library
 #include <AC_WPNav.h>     		// ArduCopter waypoint navigation library
@@ -324,6 +325,14 @@ static GCS_MAVLINK gcs[MAVLINK_COMM_NUM_BUFFERS];
 #if AIRSPEED == ENABLED
 AP_Airspeed airspeed(aparmTR);
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+// Rotary Encoder
+////////////////////////////////////////////////////////////////////////////////
+#if ROTARY_ENCODER == ENABLED
+AP_RotaryEncoder rotary_encoder;
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // User variables
 ////////////////////////////////////////////////////////////////////////////////
@@ -768,6 +777,9 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
 #if AIRSPEED == ENABLED
     { read_airspeed,        40,   1200 },
     { airspeed_ratio_update,400,  1000 },
+#endif
+#if ROTARY_ENCODER == ENABLED
+    { read_rotary_encoder,  40,   1200 },
 #endif
 #if FRAME_CONFIG == HELI_FRAME
     { check_dynamic_flight,  8,     75 },
