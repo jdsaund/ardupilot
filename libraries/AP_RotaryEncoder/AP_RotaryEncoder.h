@@ -13,7 +13,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
+/// @file    AC_RotaryEncoder.h
+/// @brief   ArduCopter rotary encoder library for use with PWM rotary encoders.
+/// Input is on pin 54 (Aux 5) on pixhawk 1. To enable, #define ROTARY_ENCODER ENABLED in your APM_Config.h file
+
 #ifndef __AP_ROTARYENCODER_H__
 #define __AP_ROTARYENCODER_H__
 
@@ -51,6 +55,8 @@ public:
     void init();
 
     void read(void);
+
+    int32_t get_angle_cds (void) const {return _angle_cds;};
 
 private:
     struct pwm_input_s _pwm;

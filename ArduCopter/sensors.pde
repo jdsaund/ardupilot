@@ -143,6 +143,10 @@ static void zero_airspeed(bool startup)
 static void read_rotary_encoder(void)
 {
     rotary_encoder.read();
+
+    if (should_log(MASK_LOG_IMU)) {
+    Log_Write_Rotary_Encoder();
+    }
 }
 #endif
 
