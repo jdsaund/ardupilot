@@ -37,9 +37,6 @@
 
 #define AP_ROTARYENCODER_AVERAGING_NUM_SAMPLES 4
 
-
-extern const AP_HAL::HAL& hal;
-
 /// @class      AP_RotaryEncoder
 class AP_RotaryEncoder {
 public:
@@ -57,6 +54,8 @@ public:
     void read(void);
 
     int32_t get_angle_cds (void) const {return _angle_cds;};
+    uint32_t get_pulse_width (void) const {return _pulse_width;};
+    uint32_t get_period (void) const {return _period;};
 
 private:
     struct pwm_input_s _pwm;

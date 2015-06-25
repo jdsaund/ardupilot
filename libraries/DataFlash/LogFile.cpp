@@ -1317,7 +1317,9 @@ void DataFlash_Class::Log_Write_Rotary_Encoder(AP_RotaryEncoder &rotary_encoder)
     struct log_ROTARY_ENCODER pkt = {
         LOG_PACKET_HEADER_INIT(LOG_RE_MSG),
         timestamp     : hal.scheduler->millis(),
-        angle_cds      : rotary_encoder.get_angle_cds(),
+        angle_cds     : rotary_encoder.get_angle_cds(),
+        pulse_width   : rotary_encoder.get_pulse_width(),
+        period        : rotary_encoder.get_period(),
     };
     WriteBlock(&pkt, sizeof(pkt));
 }

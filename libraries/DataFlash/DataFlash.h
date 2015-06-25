@@ -542,6 +542,8 @@ struct PACKED log_ROTARY_ENCODER {
     LOG_PACKET_HEADER;
     uint32_t timestamp;
     int32_t angle_cds;
+    uint32_t pulse_width;
+    uint32_t period;
 };
 
 struct PACKED log_ACCEL {
@@ -610,7 +612,7 @@ Format characters in the format string for binary log messages
     { LOG_ARSP_MSG, sizeof(log_AIRSPEED), \
       "ARSP",  "Iffcff",   "TimeMS,Airspeed,DiffPress,Temp,RawPress,Offset" }, \
     { LOG_RE_MSG, sizeof(log_ROTARY_ENCODER), \
-      "RE",  "Ii",   "TimeMS,AngleCDs" }, \
+      "RE",  "IiII",   "TimeMS,AngleCDs,PulseWidth,Period" }, \
     { LOG_CURRENT_MSG, sizeof(log_Current), \
       "CURR", "IhhhHfh","TimeMS,Throttle,Volt,Curr,Vcc,CurrTot,Volt2" },\
 	{ LOG_ATTITUDE_MSG, sizeof(log_Attitude),\
