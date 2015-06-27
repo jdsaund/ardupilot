@@ -97,7 +97,7 @@ void AP_Compound::rate_controller_run()
         set_rudder(_passthrough_rudder);
     } else {
         update_rate_bf_targets();
-        rate_bf_to_motor_roll_pitch(_rate_bf_target.x, _rate_bf_target.y);
+        rate_bf_to_motor_roll_pitch_yaw(_rate_bf_target.x, _rate_bf_target.y, _rate_bf_target.z);
     }
 }
 
@@ -113,26 +113,30 @@ void AP_Compound::rate_controller_run()
 // body-frame rate controller
 //
 
-// rate_bf_to_motor_roll_pitch - ask the rate controller to calculate the motor outputs to achieve the target rate in centi-degrees / second
-void AP_Compound::rate_bf_to_motor_roll_pitch(float rate_roll_target_cds, float rate_pitch_target_cds)
+// rate_bf_to_motor_roll_pitch_yaw - ask the rate controller to calculate the motor outputs to achieve the target rate in centi-degrees / second
+void AP_Compound::rate_bf_to_motor_roll_pitch_yaw(float rate_roll_target_cds, float rate_pitch_target_cds, float rate_yaw_target_cds)
 {
     float roll_pd, roll_i, roll_ff;             // used to capture pid values
     float pitch_pd, pitch_i, pitch_ff;          // used to capture pid values
-    float rate_roll_error, rate_pitch_error;    // simply target_rate - current_rate
-    float roll_out, pitch_out;
+    float yaw_pd, yaw_i, yaw_ff;                // used to capture pid values
+    float rate_roll_error, rate_pitch_error, rate_yaw_error;    // simply target_rate - current_rate
+    float roll_out, pitch_out, yaw_out;
     const Vector3f& gyro = _ahrs.get_gyro();     // get current rates
 
     // calculate error
     rate_roll_error = rate_roll_target_cds - gyro.x * AC_ATTITUDE_CONTROL_DEGX100;
     rate_pitch_error = rate_pitch_target_cds - gyro.y * AC_ATTITUDE_CONTROL_DEGX100;
+    rate_yaw_error = rate_yaw_target_cds - gyro.z * AC_ATTITUDE_CONTROL_DEGX100;
 
     // input to PID controller
     _pid_aileron.set_input_filter_all(rate_roll_error);
     _pid_elevator.set_input_filter_all(rate_pitch_error);
+    _pid_rudder.set_input_filter_all(rate_yaw_error);
 
     // call p and d controllers
     roll_pd = _pid_aileron.get_p() + _pid_aileron.get_d();
     pitch_pd = _pid_elevator.get_p() + _pid_elevator.get_d();
+    yaw_pd = _pid_rudder.get_p() + _pid_rudder.get_d();
 
     // get roll i term
     roll_i = _pid_aileron.get_integrator();
@@ -158,12 +162,26 @@ void AP_Compound::rate_bf_to_motor_roll_pitch(float rate_roll_target_cds, float 
         }
     }
 
+    // get yaw i term
+    yaw_i = _pid_rudder.get_integrator();
+
+    // update i term as long as we haven't breached the limits or the I term will certainly reduce
+    if (!_flags.limit_yaw || ((yaw_i>0&&rate_yaw_error<0)||(yaw_i<0&&rate_yaw_error>0))){
+        if (_flags.leaky_i) {
+            yaw_i = ((AC_HELI_PID&)_pid_rudder).get_leaky_i(AP_COMPOUND_RATE_INTEGRATOR_LEAK_RATE);
+        }else{
+            yaw_i = _pid_rudder.get_i();
+        }
+    }
+
     roll_ff = aileron_feedforward_filter.apply(((AC_HELI_PID&)_pid_aileron).get_ff(rate_roll_target_cds), _dt);
     pitch_ff = elevator_feedforward_filter.apply(((AC_HELI_PID&)_pid_elevator).get_ff(rate_pitch_target_cds), _dt);
+    yaw_ff = rudder_feedforward_filter.apply(((AC_HELI_PID&)_pid_rudder).get_ff(rate_yaw_target_cds), _dt);
 
     // add feed forward and final output
     roll_out = roll_pd + roll_i + roll_ff;
     pitch_out = pitch_pd + pitch_i + pitch_ff;
+    yaw_out = yaw_pd + yaw_i + yaw_ff;
 
     // constrain output and update limit flags
     if (fabsf(roll_out) > AC_ATTITUDE_RATE_RP_CONTROLLER_OUT_MAX) {
@@ -178,10 +196,17 @@ void AP_Compound::rate_bf_to_motor_roll_pitch(float rate_roll_target_cds, float 
     }else{
         _flags.limit_pitch = false;
     }
+    if (fabsf(yaw_out) > AC_ATTITUDE_RATE_RP_CONTROLLER_OUT_MAX) {
+        yaw_out = constrain_float(yaw_out,-AC_ATTITUDE_RATE_RP_CONTROLLER_OUT_MAX,AC_ATTITUDE_RATE_RP_CONTROLLER_OUT_MAX);
+        _flags.limit_yaw = true;
+    }else{
+        _flags.limit_yaw = false;
+    }
 
     // output to motors
     set_aileron(roll_out);
     set_elevator(pitch_out);
+    set_rudder(yaw_out);
 }
 
 void AP_Compound::passthrough_to_servos(int16_t roll_passthrough, int16_t pitch_passthrough, int16_t yaw_passthrough)
