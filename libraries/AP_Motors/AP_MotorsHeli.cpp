@@ -219,7 +219,10 @@ const AP_Param::GroupInfo AP_MotorsHeli::var_info[] PROGMEM = {
 void AP_MotorsHeli::Init()
 {
     // set update rate
-    set_update_rate(_speed_hz);
+    /*
+        disabled until speeds greater than 50hz for aux channels becomes available
+        set_update_rate(_speed_hz);
+    */
 
     // ensure inputs are not passed through to servos
     _servo_manual = 0;
