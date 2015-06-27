@@ -61,7 +61,6 @@ void AP_RotaryEncoder::read(void)
     } else {
         _angle_cds = 3599 * ((float)_pulse_width / (float)_period) - 1800; // outputs angle in centi-degrees, -1800 to +1800
     }
-    hal.console->printf(PSTR("Pulse Width = %.0f\nPeriod = %.0f\nAngle = %.1f\n"), (double)_pulse_width, (double)_period, (double)_angle_cds/10);
 
     // reset the sample buffer
     ioctl(_fd, SENSORIOCRESET, 0);
