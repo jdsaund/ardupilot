@@ -97,7 +97,7 @@ private:
     //
     // rate_bf_to_motor_roll_pitch - ask the rate controller to calculate the motor outputs to achieve the target body-frame rate (in centi-degrees/sec) for roll, pitch and yaw
     // outputs are sent directly to motor class
-    void rate_bf_to_motor_roll_pitch(float rate_roll_target_cds, float rate_pitch_target_cds);
+    void rate_bf_to_motor_roll_pitch_yaw(float rate_roll_target_cds, float rate_pitch_target_cds, float rate_yaw_target_cds);
 
     void update_rate_bf_targets() {_rate_bf_target = _attitude_control.rate_bf_targets();};
 
