@@ -901,7 +901,8 @@ private:
     void zero_airspeed(bool startup);
 #endif
 #if COMPOUND == ENABLED
-    void compound_radio_passthrough(void);
+    void compound_radio_passthrough();
+    void compound_thrust_passthrough();
 #endif
     void read_battery(void);
     void read_receiver_rssi(void);

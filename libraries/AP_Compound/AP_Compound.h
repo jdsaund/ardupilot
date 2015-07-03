@@ -19,6 +19,7 @@
 #define AP_COMPOUND_RC_CH_AIL                        CH_9
 #define AP_COMPOUND_RC_CH_ELE                        CH_10
 #define AP_COMPOUND_RC_CH_RUD                        CH_11
+#define AP_COMPOUND_RC_CH_THR                        CH_12
 
 /// @class      AP_Compound
 class AP_Compound {
@@ -35,7 +36,8 @@ public:
                 AC_HELI_PID& pid_rudder,
                 RC_Channel& ail_servo,
                 RC_Channel& ele_servo,
-                RC_Channel& rud_servo):
+                RC_Channel& rud_servo,
+                RC_Channel& thr_servo):
 
     _ahrs(ahrs),
     _aparm(aparm),
@@ -47,6 +49,7 @@ public:
     _servo_ail(ail_servo),
     _servo_ele(ele_servo),
     _servo_rud(rud_servo),
+    _servo_thr(thr_servo),
     _loop_rate(loop_rate),
     _aileron_out(0),
     _elevator_out(0),
@@ -67,10 +70,13 @@ public:
         _flags.limit_yaw        = false;
         _flags.leaky_i          = AP_COMPOUND_LEAKY_I_USE;
         _flags.servo_passthrough = false;
+        _flags.thrust_passthrough = false;
     }
 
     // init
     void Init();
+
+    bool allow_arming() const;
 
     // enable - starts allowing signals to be sent to motors
     void enable();
@@ -85,6 +91,8 @@ public:
     virtual void rate_controller_run();
 
     void passthrough_to_servos(int16_t roll_passthrough, int16_t pitch_passthrough, int16_t yaw_passthrough);
+
+    void passthrough_to_thrust(int16_t thrust_passthrough);
 
     void write_servos();
 
@@ -118,6 +126,7 @@ private:
     RC_Channel&         _servo_ail;
     RC_Channel&         _servo_ele;
     RC_Channel&         _servo_rud;
+    RC_Channel&         _servo_thr;
 
     // internal objects
     uint16_t            _loop_rate;                 // rate at which output() function is called (normally 400hz)
@@ -130,6 +139,7 @@ private:
     int16_t             _passthrough_aileron;
     int16_t             _passthrough_elevator;
     int16_t             _passthrough_rudder;
+    int16_t             _passthrough_thrust;
 
     // LPF filters to act on Rate Feedforward terms to linearize output.
     LowPassFilterFloat aileron_feedforward_filter;
@@ -144,6 +154,7 @@ private:
         uint8_t    limit_yaw               : 1;
         uint8_t    leaky_i                 : 1;
         uint8_t    servo_passthrough       : 1;
+        uint8_t    thrust_passthrough      : 1;
     } _flags;
 };
 #endif // __AP_COMPOUND_H__

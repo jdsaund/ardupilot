@@ -749,6 +749,17 @@ bool Copter::arm_checks(bool display_failure, bool arming_from_gcs)
     }
 #endif  // HELI_FRAME
 
+        // check if thrst motor is spinning on compound copter
+
+    #if COMPOUND == ENABLED
+    if (!compound.allow_arming()){
+        if (display_failure) {
+            gcs_send_text_P(SEVERITY_HIGH,PSTR("Arm: Thrust Motor Engaged"));
+        }
+        return false;
+    }
+    #endif  // COMPOUND
+
     // succeed if arming checks are disabled
     if (g.arming_check == ARMING_CHECK_NONE) {
         return true;

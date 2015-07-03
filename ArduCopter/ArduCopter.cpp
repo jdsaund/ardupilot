@@ -322,6 +322,10 @@ void Copter::throttle_loop()
     // update trad heli swash plate movement
     heli_update_landing_swash();
 #endif
+
+#if COMPOUND == ENABLED
+    compound_thrust_passthrough();
+#endif
 }
 
 // update_mount - update camera mount position
