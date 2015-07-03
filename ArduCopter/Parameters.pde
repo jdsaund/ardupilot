@@ -528,6 +528,9 @@ const AP_Param::Info var_info[] PROGMEM = {
     // @Group: CPND_RUD
     // @Path: ../libraries/RC_Channel/RC_Channel.cpp
     GGROUP(compound_servo_rud,    "CPND_RUD_", RC_Channel),
+    // @Group: CPND_RUD
+    // @Path: ../libraries/RC_Channel/RC_Channel.cpp
+    GGROUP(compound_servo_thr,    "CPND_THR_", RC_Channel),
 
     // compound copter PID controller
     //---------------
