@@ -35,11 +35,13 @@ void AP_Compound::Init()
     RC_Channel_aux::disable_aux_channel(AP_COMPOUND_RC_CH_AIL);
     RC_Channel_aux::disable_aux_channel(AP_COMPOUND_RC_CH_ELE);
     RC_Channel_aux::disable_aux_channel(AP_COMPOUND_RC_CH_RUD);
+    RC_Channel_aux::disable_aux_channel(AP_COMPOUND_RC_CH_THR);
 
     // swash servo initialisation
     _servo_ail.set_range(0,1000);
     _servo_ele.set_range(0,1000);
     _servo_rud.set_range(0,1000);
+    _servo_thr.set_range(0,1000);
 
     // servo min/max values
     _servo_ail.radio_min = 1000;
@@ -48,9 +50,23 @@ void AP_Compound::Init()
     _servo_ele.radio_max = 2000;
     _servo_rud.radio_min = 1000;
     _servo_rud.radio_max = 2000;
+    _servo_thr.radio_min = 1000;
+    _servo_thr.radio_max = 2000;
 
     enable();
 
+}
+
+// allow_arming - returns true if thrust motor is not spinning and it is ok to arm
+bool AP_Compound::allow_arming() const
+{
+    // ensure thrust motor has not started
+    if (_passthrough_thrust > 0) {
+        return false;
+    }
+
+    // all other cases it is ok to arm
+    return true;
 }
 
 // set update rate to motors - a value in hertz
@@ -63,7 +79,8 @@ void AP_Compound::set_update_rate( uint16_t speed_hz )
     uint32_t mask =
         1U << AP_COMPOUND_RC_CH_AIL |
         1U << AP_COMPOUND_RC_CH_ELE |
-        1U << AP_COMPOUND_RC_CH_RUD;
+        1U << AP_COMPOUND_RC_CH_RUD |
+        1U << AP_COMPOUND_RC_CH_THR;
     hal.rcout->set_freq(mask, _speed_hz);
 }
 
@@ -74,6 +91,7 @@ void AP_Compound::enable()
     hal.rcout->enable_ch(AP_COMPOUND_RC_CH_AIL);    // ail servo
     hal.rcout->enable_ch(AP_COMPOUND_RC_CH_ELE);    // ele servo
     hal.rcout->enable_ch(AP_COMPOUND_RC_CH_RUD);    // rud servo
+    hal.rcout->enable_ch(AP_COMPOUND_RC_CH_THR);    // thr servo
 }
 
 // sends commands to the motors
@@ -91,6 +109,7 @@ void AP_Compound::output()
 // should be called at 100hz or more
 void AP_Compound::rate_controller_run()
 {
+    // fixed wing servos
     if (_flags.servo_passthrough) {
         set_aileron(_passthrough_aileron);
         set_elevator(_passthrough_elevator);
@@ -99,6 +118,19 @@ void AP_Compound::rate_controller_run()
         update_rate_bf_targets();
         rate_bf_to_motor_roll_pitch_yaw(_rate_bf_target.x, _rate_bf_target.y, _rate_bf_target.z);
     }
+
+    // thrust motor
+    if(_flags.armed)
+    {
+        // send output to thrust motor
+        if (_flags.thrust_passthrough) {
+            set_thrust(_passthrough_thrust);
+        }
+    } else {
+        // set motor output to minimum
+        set_thrust(0);
+    }
+
 }
 
 //
@@ -219,21 +251,31 @@ void AP_Compound::passthrough_to_servos(int16_t roll_passthrough, int16_t pitch_
     _passthrough_rudder = yaw_passthrough;
 }
 
+void AP_Compound::passthrough_to_thrust(int16_t thrust_passthrough)
+{
+    _flags.thrust_passthrough = true;
+
+    // output to motors
+    _passthrough_thrust = thrust_passthrough;
+}
+
 void AP_Compound::write_servos()
 {
     // servo outputs
     _servo_ail.servo_out = _aileron_out + (_servo_ail.radio_trim-1500) + 500;
     _servo_ele.servo_out = _elevator_out + (_servo_ele.radio_trim-1500) + 500;
     _servo_rud.servo_out = _rudder_out + (_servo_rud.radio_trim-1500) + 500;
+    _servo_thr.servo_out = _thrust_out + (_servo_thr.radio_trim-1500);
 
     // use servo_out to calculate pwm_out and radio_out
     _servo_ail.calc_pwm();
     _servo_ele.calc_pwm();
     _servo_rud.calc_pwm();
+    _servo_thr.calc_pwm();
 
     // actually move the servos
     hal.rcout->write(AP_COMPOUND_RC_CH_AIL, _servo_ail.radio_out);
     hal.rcout->write(AP_COMPOUND_RC_CH_ELE, _servo_ele.radio_out);
     hal.rcout->write(AP_COMPOUND_RC_CH_RUD, _servo_rud.radio_out);
+    hal.rcout->write(AP_COMPOUND_RC_CH_THR, _servo_thr.radio_out);
 }
-

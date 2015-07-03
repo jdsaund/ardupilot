@@ -173,7 +173,8 @@ public:
         k_param_compound_servo_ail = 91,
         k_param_compound_servo_ele,
         k_param_compound_servo_rud,
-        k_param_pid_aileron = 95,
+        k_param_compound_servo_thr,
+        k_param_pid_aileron,
         k_param_pid_elevator,
         k_param_pid_rudder,
 
@@ -437,7 +438,7 @@ public:
 #endif
 #if COMPOUND ==         ENABLED
     // Compound Copter
-    RC_Channel      compound_servo_ail, compound_servo_ele, compound_servo_rud;     // servos for fixed wing surfaces
+    RC_Channel      compound_servo_ail, compound_servo_ele, compound_servo_rud, compound_servo_thr;     // servos for fixed wing surfaces
 #endif
 #if FRAME_CONFIG ==     SINGLE_FRAME
     // Single
@@ -525,6 +526,7 @@ public:
         compound_servo_ail  (CH_9),
         compound_servo_ele  (CH_10),
         compound_servo_rud  (CH_11),
+        compound_servo_thr  (CH_12),
 #endif
 #if FRAME_CONFIG ==     SINGLE_FRAME
         single_servo_1        (CH_1),
