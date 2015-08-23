@@ -25,10 +25,10 @@
      unmaintained 
 */
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_LINUX
 
-#include <AP_Math.h>
+#include <AP_Math/AP_Math.h>
 #include "AP_InertialSensor_MPU9150.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -469,7 +469,7 @@ bool AP_InertialSensor_MPU9150::_init_sensor(void)
     _accel_instance = _imu.register_accel();
 
     // start the timer process to read samples    
-    hal.scheduler->register_timer_process(AP_HAL_MEMBERPROC(&AP_InertialSensor_MPU9150::_accumulate));
+    hal.scheduler->register_timer_process(FUNCTOR_BIND_MEMBER(&AP_InertialSensor_MPU9150::_accumulate, void));
 
     return true;
 

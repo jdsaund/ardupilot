@@ -3,7 +3,7 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#include <AP_Common.h>
+#include <AP_Common/AP_Common.h>
 
 // Global parameter class.
 //
@@ -77,7 +77,7 @@ public:
         k_param_gps,
 
         // Parachute object
-        k_param_parachute,	// 17
+        k_param_parachute,
 
         // Landing gear object
         k_param_landinggear,    // 18
@@ -120,7 +120,7 @@ public:
         k_param_serial2_baud,           // deprecated - remove
         k_param_land_repositioning,
         k_param_sonar, // sonar object
-        k_param_ekfcheck_thresh,
+        k_param_fs_ekf_thresh,
         k_param_terrain,
         k_param_acro_expo,
         k_param_throttle_deadzone,
@@ -187,13 +187,20 @@ public:
         k_param_gcs2,
         k_param_serial2_baud_old, // deprecated
         k_param_serial2_protocol, // deprecated
-        k_param_serial_manager,  // 119
+        k_param_serial_manager,
         k_param_ch9_option,
         k_param_ch10_option,
         k_param_ch11_option,
-        k_param_ch12_option,     // 123
+        k_param_ch12_option,
         k_param_takeoff_trigger_dz,
-        k_param_gcs3,            // 125
+        k_param_gcs3,
+        k_param_gcs_pid_mask,    // 126
+
+        //
+        // 135 : reserved for Solo until features merged with master
+        //
+        k_param_rtl_speed_cms = 135,
+        k_param_fs_batt_curr_rtl, // 136
 
         //
         // 140: Sensor parameters
@@ -270,7 +277,7 @@ public:
         k_param_failsafe_gps_enabled,   // remove
         k_param_rc_9,
         k_param_rc_12,
-        k_param_failsafe_gcs,           // 198
+        k_param_failsafe_gcs,
         k_param_rcmap, // 199
 
         //
@@ -313,21 +320,24 @@ public:
         k_param_p_loiter_lon,       // remove
         k_param_pid_loiter_rate_lat,    // remove
         k_param_pid_loiter_rate_lon,    // remove
-        k_param_pid_nav_lat,        // 233 - remove
-        k_param_pid_nav_lon,        // 234 - remove
+        k_param_pid_nav_lat,        // remove
+        k_param_pid_nav_lon,        // remove
         k_param_p_alt_hold,
         k_param_p_vel_z,
-        k_param_pid_optflow_roll,       // 237 - remove
-        k_param_pid_optflow_pitch,      // 238 - remove
-        k_param_acro_balance_roll_old,  // 239 - remove
-        k_param_acro_balance_pitch_old, // 240 - remove
+        k_param_pid_optflow_roll,       // remove
+        k_param_pid_optflow_pitch,      // remove
+        k_param_acro_balance_roll_old,  // remove
+        k_param_acro_balance_pitch_old, // remove
         k_param_pid_accel_z,
         k_param_acro_balance_roll,
         k_param_acro_balance_pitch,
-        k_param_acro_yaw_p, // 244
-        k_param_autotune_axis_bitmask,  // 245
-        k_param_autotune_aggressiveness,  // 246
-        k_param_pi_vel_xy,  // 247
+        k_param_acro_yaw_p,
+        k_param_autotune_axis_bitmask,
+        k_param_autotune_aggressiveness,
+        k_param_pi_vel_xy,
+        k_param_fs_ekf_action,
+        k_param_rtl_climb_min,  // 249
+        k_param_rpm_sensor,
 
         // 254,255: reserved
     };
@@ -362,6 +372,7 @@ public:
     AP_Int8         compass_enabled;
     AP_Int8         super_simple;
     AP_Int16        rtl_alt_final;
+    AP_Int16        rtl_climb_min;              // rtl minimum climb in cm
 
     AP_Int8         rssi_pin;
     AP_Float        rssi_range;                 // allows to set max voltage for rssi pin such as 5.0, 3.3 etc. 
@@ -413,7 +424,9 @@ public:
     AP_Int8         arming_check;
 
     AP_Int8         land_repositioning;
-    AP_Float        ekfcheck_thresh;
+    AP_Int8         fs_ekf_action;
+    AP_Float        fs_ekf_thresh;
+    AP_Int16        gcs_pid_mask;
 
 #if FRAME_CONFIG ==     HELI_FRAME
     // Heli

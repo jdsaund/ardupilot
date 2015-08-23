@@ -17,10 +17,10 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <GCS.h>
-#include <AP_AHRS.h>
-#include <AP_HAL.h>
-#include <AP_Vehicle.h>
+#include "GCS.h"
+#include <AP_AHRS/AP_AHRS.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Vehicle/AP_Vehicle.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -89,6 +89,9 @@ GCS_MAVLINK::setup_uart(const AP_SerialManager& serial_manager, AP_SerialManager
         uart->write(0x30);
         uart->write(0x20);
     }
+    // since tcdrain() and TCSADRAIN may not be implemented...
+    hal.scheduler->delay(1);
+    
     uart->set_flow_control(old_flow_control);
 
     // now change back to desired baudrate
@@ -218,8 +221,8 @@ void GCS_MAVLINK::send_ahrs2(AP_AHRS &ahrs)
 {
 #if AP_AHRS_NAVEKF_AVAILABLE
     Vector3f euler;
-    struct Location loc;
-    if (ahrs.get_secondary_attitude(euler) && ahrs.get_secondary_position(loc)) {
+    struct Location loc {};
+    if (ahrs.get_secondary_attitude(euler)) {
         mavlink_msg_ahrs2_send(chan,
                                euler.x,
                                euler.y,
@@ -556,13 +559,27 @@ void GCS_MAVLINK::handle_param_set(mavlink_message_t *msg, DataFlash_Class *Data
     strncpy(key, (char *)packet.param_id, AP_MAX_NAME_SIZE);
     key[AP_MAX_NAME_SIZE] = 0;
 
-    vp = AP_Param::set_param_by_name(key, packet.param_value, &var_type);
+    // find existing param so we can get the old value
+    vp = AP_Param::find(key, &var_type);
     if (vp == NULL) {
         return;
     }
+    float old_value = vp->cast_to_float(var_type);
+
+    // set the value
+    vp->set_float(packet.param_value, var_type);
+
+    /*
+      we force the save if the value is not equal to the old
+      value. This copes with the use of override values in
+      constructors, such as PID elements. Otherwise a set to the
+      default value which differs from the constructor value doesn't
+      save the change
+     */
+    bool force_save = !is_equal(packet.param_value, old_value);
 
     // save the change
-    vp->save();
+    vp->save(force_save);
 
     // Report back the new value if we accepted the change
     // we send the value we actually set, which could be
@@ -840,7 +857,7 @@ GCS_MAVLINK::update(run_cli_fn run_cli)
     {
         uint8_t c = comm_receive_ch(chan);
 
-        if (run_cli != NULL) {
+        if (run_cli) {
             /* allow CLI to be started by hitting enter 3 times, if no
              *  heartbeat packets have been received */
             if ((mavlink_active==0) && (hal.scheduler->millis() - _cli_timeout) < 20000 && 
@@ -1245,9 +1262,8 @@ void GCS_MAVLINK::send_opticalflow(AP_AHRS_NavEKF &ahrs, const OpticalFlow &optf
 /*
   send AUTOPILOT_VERSION packet
  */
-void GCS_MAVLINK::send_autopilot_version(void) const
+void GCS_MAVLINK::send_autopilot_version() const
 {
-    uint16_t capabilities = 0;
     uint32_t flight_sw_version = 0;
     uint32_t middleware_sw_version = 0;
     uint32_t os_sw_version = 0;
@@ -1279,7 +1295,7 @@ void GCS_MAVLINK::send_autopilot_version(void) const
     
     mavlink_msg_autopilot_version_send(
         chan,
-        capabilities,
+        hal.util->get_capabilities(),
         flight_sw_version,
         middleware_sw_version,
         os_sw_version,
@@ -1316,3 +1332,24 @@ void GCS_MAVLINK::send_local_position(const AP_AHRS &ahrs) const
         velocity.y,
         velocity.z);
 }
+
+/*
+  send LOCAL_POSITION_NED message
+ */
+void GCS_MAVLINK::send_vibration(const AP_InertialSensor &ins) const
+{
+#if INS_VIBRATION_CHECK
+    Vector3f vibration = ins.get_vibration_levels();
+
+    mavlink_msg_vibration_send(
+        chan,
+        hal.scheduler->micros64(),
+        vibration.x,
+        vibration.y,
+        vibration.z,
+        ins.get_accel_clip_count(0),
+        ins.get_accel_clip_count(1),
+        ins.get_accel_clip_count(2));
+#endif
+}
+

@@ -24,9 +24,7 @@
 
 #include "Plane.h"
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpmf-conversions"
-#define SCHED_TASK(func) AP_HAL_CLASSPROC_VOID(&plane, &Plane::func)
+#define SCHED_TASK(func) FUNCTOR_BIND(&plane, &Plane::func, void)
 
 /*
   scheduler table - all regular tasks are listed here, along with how
@@ -78,8 +76,6 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] PROGMEM = {
     { SCHED_TASK(terrain_update),         5,    500 },
 };
 
-#pragma GCC diagnostic pop
-
 void Plane::setup() 
 {
     cliSerial = hal.console;
@@ -96,7 +92,7 @@ void Plane::setup()
     init_ardupilot();
 
     // initialise the main loop scheduler
-    scheduler.init(&scheduler_tasks[0], sizeof(scheduler_tasks)/sizeof(scheduler_tasks[0]), NULL);
+    scheduler.init(&scheduler_tasks[0], ARRAY_SIZE(scheduler_tasks));
 }
 
 void Plane::loop()
@@ -141,10 +137,12 @@ void Plane::ahrs_update()
     hal.util->set_soft_armed(arming.is_armed() &&
                    hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED);
 
+#if HIL_SUPPORT
     if (g.hil_mode == 1) {
         // update hil before AHRS update
         gcs_update();
     }
+#endif
 
     ahrs.update();
 
@@ -152,8 +150,12 @@ void Plane::ahrs_update()
         Log_Write_Attitude();
     }
 
-    if (should_log(MASK_LOG_IMU))
+    if (should_log(MASK_LOG_IMU)) {
         Log_Write_IMU();
+#if HAL_CPU_CLASS >= HAL_CPU_CLASS_75
+        DataFlash.Log_Write_IMUDT(ins);
+#endif
+    }
 
     // calculate a scaled roll limit based on current pitch
     roll_limit_cd = g.roll_limit_cd * cosf(ahrs.pitch);
@@ -254,6 +256,11 @@ void Plane::update_logging2(void)
 
     if (should_log(MASK_LOG_RC))
         Log_Write_RC();
+
+#if HAL_CPU_CLASS >= HAL_CPU_CLASS_75
+    if (should_log(MASK_LOG_IMU))
+        DataFlash.Log_Write_Vibration(ins);
+#endif
 }
 
 
@@ -274,9 +281,7 @@ void Plane::obc_fs_check(void)
  */
 void Plane::update_aux(void)
 {
-    if (!px4io_override_enabled) {
-        RC_Channel_aux::enable_aux_servos();
-    }
+    RC_Channel_aux::enable_aux_servos();
 }
 
 void Plane::one_second_loop()
@@ -316,7 +321,9 @@ void Plane::one_second_loop()
         Log_Write_Status();
     }
 
+#if HAL_CPU_CLASS >= HAL_CPU_CLASS_75
     ins.set_raw_logging(should_log(MASK_LOG_IMU_RAW));
+#endif
 }
 
 void Plane::log_perf_info()
@@ -326,8 +333,10 @@ void Plane::log_perf_info()
                           (unsigned long)G_Dt_max, 
                           (unsigned long)G_Dt_min);
     }
+#if HAL_CPU_CLASS >= HAL_CPU_CLASS_75
     if (should_log(MASK_LOG_PM))
         Log_Write_Performance();
+#endif
     G_Dt_max = 0;
     G_Dt_min = 0;
     resetPerfData();
@@ -504,7 +513,6 @@ void Plane::handle_auto_mode(void)
         // are for takeoff and landing
         steer_state.hold_course_cd = -1;
         auto_state.land_complete = false;
-        auto_state.land_sink_rate = 0;
         calc_nav_roll();
         calc_nav_pitch();
         calc_throttle();
@@ -544,6 +552,7 @@ void Plane::update_flight_mode(void)
     case TRAINING: {
         training_manual_roll = false;
         training_manual_pitch = false;
+        update_load_factor();
         
         // if the roll is past the set roll limit, then
         // we set target roll to the limit
@@ -784,6 +793,20 @@ void Plane::update_alt()
         Log_Write_Baro();
     }
 
+    // calculate the sink rate.
+    float sink_rate;
+    Vector3f vel;
+    if (ahrs.get_velocity_NED(vel)) {
+        sink_rate = vel.z;
+    } else if (gps.status() >= AP_GPS::GPS_OK_FIX_3D && gps.have_vertical_velocity()) {
+        sink_rate = gps.velocity().z;
+    } else {
+        sink_rate = -barometer.get_climb_rate();        
+    }
+
+    // low pass the sink rate to take some of the noise out
+    auto_state.sink_rate = 0.8f * auto_state.sink_rate + 0.2f*sink_rate;
+    
     geofence_check(true);
 
     update_flight_stage();
@@ -853,7 +876,7 @@ void Plane::determine_is_flying(void)
           make is_flying() more accurate for landing approach
          */
         if (flight_stage == AP_SpdHgtControl::FLIGHT_LAND_APPROACH &&
-            fabsf(auto_state.land_sink_rate) > 0.2f) {
+            fabsf(auto_state.sink_rate) > 0.2f) {
             isFlyingBool = true;
         }
     } else {

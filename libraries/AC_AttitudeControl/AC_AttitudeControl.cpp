@@ -1,8 +1,8 @@
 // -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: t -*-
 
 #include "AC_AttitudeControl.h"
-#include <AP_HAL.h>
-#include <AP_Math.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Math/AP_Math.h>
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl::var_info[] PROGMEM = {
@@ -80,10 +80,17 @@ void AC_AttitudeControl::relax_bf_rate_controller()
     // ensure zero error in body frame rate controllers
     const Vector3f& gyro = _ahrs.get_gyro();
     _rate_bf_target = gyro * AC_ATTITUDE_CONTROL_DEGX100;
+    frame_conversion_bf_to_ef(_rate_bf_target, _rate_ef_desired);
 
     _pid_rate_roll.reset_I();
     _pid_rate_pitch.reset_I();
     _pid_rate_yaw.reset_I();
+}
+
+// shifts earth frame yaw target by yaw_shift_cd.  yaw_shift_cd should be in centi-degreesa and is added to the current target heading
+void AC_AttitudeControl::shift_ef_yaw_target(float yaw_shift_cd)
+{
+    _angle_ef_target.z = wrap_360_cd_float(_angle_ef_target.z + yaw_shift_cd);
 }
 
 //
@@ -576,6 +583,7 @@ float AC_AttitudeControl::rate_bf_to_motor_roll(float rate_target_cds)
     // calculate error and call pid controller
     rate_error = rate_target_cds - current_rate;
     _pid_rate_roll.set_input_filter_d(rate_error);
+    _pid_rate_roll.set_desired_rate(rate_target_cds);
 
     // get p value
     p = _pid_rate_roll.get_p();
@@ -593,8 +601,6 @@ float AC_AttitudeControl::rate_bf_to_motor_roll(float rate_target_cds)
 
     // constrain output and return
     return constrain_float((p+i+d), -AC_ATTITUDE_RATE_RP_CONTROLLER_OUT_MAX, AC_ATTITUDE_RATE_RP_CONTROLLER_OUT_MAX);
-
-    // To-Do: allow logging of PIDs?
 }
 
 // rate_bf_to_motor_pitch - ask the rate controller to calculate the motor outputs to achieve the target rate in centi-degrees / second
@@ -611,6 +617,7 @@ float AC_AttitudeControl::rate_bf_to_motor_pitch(float rate_target_cds)
     // calculate error and call pid controller
     rate_error = rate_target_cds - current_rate;
     _pid_rate_pitch.set_input_filter_d(rate_error);
+    _pid_rate_pitch.set_desired_rate(rate_target_cds);
 
     // get p value
     p = _pid_rate_pitch.get_p();
@@ -628,8 +635,6 @@ float AC_AttitudeControl::rate_bf_to_motor_pitch(float rate_target_cds)
 
     // constrain output and return
     return constrain_float((p+i+d), -AC_ATTITUDE_RATE_RP_CONTROLLER_OUT_MAX, AC_ATTITUDE_RATE_RP_CONTROLLER_OUT_MAX);
-
-    // To-Do: allow logging of PIDs?
 }
 
 // rate_bf_to_motor_yaw - ask the rate controller to calculate the motor outputs to achieve the target rate in centi-degrees / second
@@ -646,6 +651,7 @@ float AC_AttitudeControl::rate_bf_to_motor_yaw(float rate_target_cds)
     // calculate error and call pid controller
     rate_error  = rate_target_cds - current_rate;
     _pid_rate_yaw.set_input_filter_all(rate_error);
+    _pid_rate_yaw.set_desired_rate(rate_target_cds);
 
     // get p value
     p = _pid_rate_yaw.get_p();
@@ -663,8 +669,6 @@ float AC_AttitudeControl::rate_bf_to_motor_yaw(float rate_target_cds)
 
     // constrain output and return
     return constrain_float((p+i+d), -AC_ATTITUDE_RATE_YAW_CONTROLLER_OUT_MAX, AC_ATTITUDE_RATE_YAW_CONTROLLER_OUT_MAX);
-
-    // To-Do: allow logging of PIDs?
 }
 
 // accel_limiting - enable or disable accel limiting
@@ -720,23 +724,6 @@ void AC_AttitudeControl::set_throttle_out_unstabilized(float throttle_in, bool r
     _motors.set_stabilizing(false);
     _motors.set_throttle(throttle_in);
     _angle_boost = 0;
-}
-
-// returns a throttle including compensation for roll/pitch angle
-// throttle value should be 0 ~ 1000
-float AC_AttitudeControl::get_boosted_throttle(float throttle_in)
-{
-    // inverted_factor is 1 for tilt angles below 60 degrees
-    // reduces as a function of angle beyond 60 degrees
-    // becomes zero at 90 degrees
-    float min_throttle = _motors.throttle_min();
-    float cos_tilt = _ahrs.cos_pitch() * _ahrs.cos_roll();
-    float inverted_factor = constrain_float(2.0f*cos_tilt, 0.0f, 1.0f);
-    float boost_factor = 1.0f/constrain_float(cos_tilt, 0.5f, 1.0f);
-
-    float throttle_out = (throttle_in-min_throttle)*inverted_factor*boost_factor + min_throttle;
-    _angle_boost = constrain_float(throttle_out - throttle_in,-32000,32000);
-    return throttle_out;
 }
 
 // sqrt_controller - response based on the sqrt of the error instead of the more common linear response

@@ -24,9 +24,10 @@
 /// @brief  The AP variable store.
 
 
-#include <AP_HAL.h>
-#include <AP_Common.h>
-#include <AP_Math.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_Math/AP_Math.h>
+#include <StorageManager/StorageManager.h>
 
 #include <math.h>
 #include <string.h>
@@ -276,7 +277,7 @@ const struct AP_Param::Info *AP_Param::find_by_header_group(struct Param_header 
             continue;
         }
 #endif // AP_NESTED_GROUPS_ENABLED
-        if (GROUP_ID(group_info, group_base, i, group_shift) == phdr.group_element) {
+        if (GROUP_ID(group_info, group_base, i, group_shift) == phdr.group_element && type == phdr.type) {
             // found a group element
             *ptr = (void*)(PGM_POINTER(&_var_info[vindex].ptr) + PGM_UINT16(&group_info[i].offset));
             return &_var_info[vindex];
@@ -297,14 +298,15 @@ const struct AP_Param::Info *AP_Param::find_by_header(struct Param_header phdr, 
             // not the right key
             continue;
         }
-        if (type != AP_PARAM_GROUP) {
-            // if its not a group then we are done
+        if (type == AP_PARAM_GROUP) {
+            const struct GroupInfo *group_info = (const struct GroupInfo *)PGM_POINTER(&_var_info[i].group_info);
+            return find_by_header_group(phdr, ptr, i, group_info, 0, 0);
+        }
+        if (type == phdr.type) {
+            // found it
             *ptr = (void*)PGM_POINTER(&_var_info[i].ptr);
             return &_var_info[i];
         }
-
-        const struct GroupInfo *group_info = (const struct GroupInfo *)PGM_POINTER(&_var_info[i].group_info);
-        return find_by_header_group(phdr, ptr, i, group_info, 0, 0);
     }
     return NULL;
 }
@@ -1199,25 +1201,12 @@ void AP_Param::convert_old_parameters(const struct ConversionInfo *conversion_ta
 }
 
 /*
-  set a parameter by name
+  set a parameter to a float value
  */
-AP_Param *AP_Param::set_param_by_name(const char *pname, float value, enum ap_var_type *ptype)
+void AP_Param::set_float(float value, enum ap_var_type var_type)
 {
-    AP_Param *vp;
-    enum ap_var_type var_type;
-
     if (isnan(value) || isinf(value)) {
-        return NULL;
-    }
-
-    // find the requested parameter
-    vp = AP_Param::find(pname, &var_type);
-    if (vp == NULL) {
-        return NULL;
-    }
-
-    if (ptype != NULL) {
-        *ptype = var_type;
+        return;
     }
 
     // add a small amount before casting parameter values
@@ -1227,27 +1216,23 @@ AP_Param *AP_Param::set_param_by_name(const char *pname, float value, enum ap_va
         
     // handle variables with standard type IDs
     if (var_type == AP_PARAM_FLOAT) {
-        ((AP_Float *)vp)->set(value);
+        ((AP_Float *)this)->set(value);
     } else if (var_type == AP_PARAM_INT32) {
         if (value < 0) rounding_addition = -rounding_addition;
         float v = value+rounding_addition;
         v = constrain_float(v, -2147483648.0, 2147483647.0);
-        ((AP_Int32 *)vp)->set(v);
+        ((AP_Int32 *)this)->set(v);
     } else if (var_type == AP_PARAM_INT16) {
         if (value < 0) rounding_addition = -rounding_addition;
         float v = value+rounding_addition;
         v = constrain_float(v, -32768, 32767);
-        ((AP_Int16 *)vp)->set(v);
+        ((AP_Int16 *)this)->set(v);
     } else if (var_type == AP_PARAM_INT8) {
         if (value < 0) rounding_addition = -rounding_addition;
         float v = value+rounding_addition;
         v = constrain_float(v, -128, 127);
-        ((AP_Int8 *)vp)->set(v);
-    } else {
-        // we don't support mavlink set on this parameter
-        return NULL;
+        ((AP_Int8 *)this)->set(v);
     }
-    return vp;
 }
 
 
@@ -1341,10 +1326,13 @@ bool AP_Param::load_defaults_file(const char *filename)
         param_overrides[idx].def_value_ptr = def_value_ptr;
         param_overrides[idx].value = value;
         idx++;
-        if (!set_param_by_name(pname, value, NULL)) {
+        enum ap_var_type var_type;
+        AP_Param *vp = AP_Param::find(pname, &var_type);
+        if (!vp) {
             fclose(f);
             return false;
         }
+        vp->set_float(value, var_type);
     }
     fclose(f);
 

@@ -17,7 +17,7 @@
   simulator connector for ardupilot version of JSBSim
 */
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 
 #include "SIM_JSBSim.h"
@@ -72,8 +72,6 @@ bool JSBSim::create_templates(void)
     control_port = 5505 + instance*10;
     fdm_port = 5504 + instance*10;
 
-
-    asprintf(&autotest_dir, SKETCHBOOK "/Tools/autotest");
     asprintf(&jsbsim_script, "%s/jsbsim_start_%u.xml", autotest_dir, instance);
     asprintf(&jsbsim_fgout,  "%s/jsbsim_fgout_%u.xml", autotest_dir, instance);
 
@@ -123,7 +121,7 @@ bool JSBSim::create_templates(void)
         hal.scheduler->panic("Unable to create jsbsim fgout script");
     }
     fprintf(f, "<?xml version=\"1.0\"?>\n" 
-            "<output name=\"localhost\" type=\"FLIGHTGEAR\" port=\"%u\" protocol=\"udp\" rate=\"1000\"/>\n",
+            "<output name=\"127.0.0.1\" type=\"FLIGHTGEAR\" port=\"%u\" protocol=\"udp\" rate=\"1000\"/>\n",
             fdm_port);
     fclose(f);
 
@@ -283,7 +281,11 @@ bool JSBSim::open_control_socket(void)
     sock_control.set_blocking(false);
     opened_control_socket = true;
 
-    char startup[] = "info\nresume\nstep\n";
+    char startup[] = 
+        "info\n"
+        "resume\n"
+        "step\n"
+        "set atmosphere/turb-type 4\n";
     sock_control.send(startup, strlen(startup));
     return true;
 }
@@ -332,6 +334,7 @@ void JSBSim::send_servos(const struct sitl_input &input)
         elevator = (ch2-ch1)/2.0f;
         rudder   = (ch2+ch1)/2.0f;
     }
+    float wind_speed_fps = input.wind.speed / FEET_TO_METERS;
     asprintf(&buf, 
              "set fcs/aileron-cmd-norm %f\n"
              "set fcs/elevator-cmd-norm %f\n"
@@ -339,10 +342,14 @@ void JSBSim::send_servos(const struct sitl_input &input)
              "set fcs/throttle-cmd-norm %f\n"
              "set atmosphere/psiw-rad %f\n"
              "set atmosphere/wind-mag-fps %f\n"
+             "set atmosphere/turbulence/milspec/windspeed_at_20ft_AGL-fps %f\n"
+             "set atmosphere/turbulence/milspec/severity %f\n"
              "step\n",
              aileron, elevator, rudder, throttle,
              radians(input.wind.direction),
-             input.wind.speed / FEET_TO_METERS);
+             wind_speed_fps,
+             wind_speed_fps/3,
+             input.wind.turbulence);
     ssize_t buflen = strlen(buf);
     ssize_t sent = sock_control.send(buf, buflen);
     free(buf);
@@ -422,7 +429,6 @@ void JSBSim::drain_control_socket()
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 fprintf(stderr, "error recv on control socket: %s",
                         strerror(errno));
-                exit(1);
             }
         } else {
             // fprintf(stderr, "received from control socket: %s\n", buf);

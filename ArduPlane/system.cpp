@@ -95,17 +95,24 @@ void Plane::init_ardupilot()
     //
     load_parameters();
 
+#if HIL_SUPPORT
     if (g.hil_mode == 1) {
         // set sensors to HIL mode
         ins.set_hil_mode();
         compass.set_hil_mode();
         barometer.set_hil_mode();
     }
+#endif
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_PX4
     // this must be before BoardConfig.init() so if
     // BRD_SAFETYENABLE==0 then we don't have safety off yet
-    setup_failsafe_mixing();
+    for (uint8_t tries=0; tries<10; tries++) {
+        if (setup_failsafe_mixing()) {
+            break;
+        }
+        hal.scheduler->delay(10);
+    }
 #endif
 
     BoardConfig.init();
@@ -179,8 +186,10 @@ void Plane::init_ardupilot()
         }
     }
     
+#if OPTFLOW == ENABLED
     // make optflow available to libraries
     ahrs.set_optflow(&optflow);
+#endif
 
     // Register mavlink_delay_cb, which will run anytime you have
     // more than 5ms remaining in your call to hal.scheduler->delay
@@ -226,9 +235,10 @@ void Plane::init_ardupilot()
     }
 #endif // CLI_ENABLED
 
+    init_capabilities();
+
     startup_ground();
-    if (should_log(MASK_LOG_CMD))
-        Log_Write_Startup(TYPE_GROUNDSTART_MSG);
+    Log_Write_Startup(TYPE_GROUNDSTART_MSG);
 
     // choose the nav controller
     set_nav_controller();
@@ -352,6 +362,9 @@ void Plane::set_mode(enum FlightMode mode)
 
     // disable taildrag takeoff on mode change
     auto_state.fbwa_tdrag_takeoff_mode = false;
+
+    // start with previous WP at current location
+    prev_WP_loc = current_loc;
 
     switch(control_mode)
     {
@@ -479,11 +492,16 @@ void Plane::check_long_failsafe()
     uint32_t tnow = millis();
     // only act on changes
     // -------------------
-    if(failsafe.state != FAILSAFE_LONG && failsafe.state != FAILSAFE_GCS) {
+    if(failsafe.state != FAILSAFE_LONG && failsafe.state != FAILSAFE_GCS && flight_stage != AP_SpdHgtControl::FLIGHT_LAND_FINAL &&
+            flight_stage != AP_SpdHgtControl::FLIGHT_LAND_APPROACH) {
         if (failsafe.state == FAILSAFE_SHORT &&
                    (tnow - failsafe.ch3_timer_ms) > g.long_fs_timeout*1000) {
             failsafe_long_on_event(FAILSAFE_LONG);
-        } else if (g.gcs_heartbeat_fs_enabled != GCS_FAILSAFE_OFF && 
+        } else if (g.gcs_heartbeat_fs_enabled == GCS_FAILSAFE_HB_AUTO && control_mode == AUTO &&
+                   failsafe.last_heartbeat_ms != 0 &&
+                   (tnow - failsafe.last_heartbeat_ms) > g.long_fs_timeout*1000) {
+            failsafe_long_on_event(FAILSAFE_GCS);
+        } else if (g.gcs_heartbeat_fs_enabled == GCS_FAILSAFE_HEARTBEAT &&
                    failsafe.last_heartbeat_ms != 0 &&
                    (tnow - failsafe.last_heartbeat_ms) > g.long_fs_timeout*1000) {
             failsafe_long_on_event(FAILSAFE_GCS);
@@ -508,7 +526,8 @@ void Plane::check_short_failsafe()
 {
     // only act on changes
     // -------------------
-    if(failsafe.state == FAILSAFE_NONE) {
+    if(failsafe.state == FAILSAFE_NONE && (flight_stage != AP_SpdHgtControl::FLIGHT_LAND_FINAL &&
+            flight_stage != AP_SpdHgtControl::FLIGHT_LAND_APPROACH)) {
         if(failsafe.ch3_failsafe) {                                              // The condition is checked and the flag ch3_failsafe is set in radio.pde
             failsafe_short_on_event(FAILSAFE_SHORT);
         }
@@ -524,6 +543,7 @@ void Plane::check_short_failsafe()
 
 void Plane::startup_INS_ground(void)
 {
+#if HIL_SUPPORT
     if (g.hil_mode == 1) {
         while (barometer.get_last_update() == 0) {
             // the barometer begins updating when we get the first
@@ -532,6 +552,7 @@ void Plane::startup_INS_ground(void)
             hal.scheduler->delay(1000);
         }
     }
+#endif
 
     AP_InertialSensor::Start_style style;
     if (g.skip_gyro_cal) {
@@ -667,12 +688,14 @@ void Plane::print_comma(void)
  */
 void Plane::servo_write(uint8_t ch, uint16_t pwm)
 {
+#if HIL_SUPPORT
     if (g.hil_mode==1 && !g.hil_servos) {
         if (ch < 8) {
             RC_Channel::rc_channel(ch)->radio_out = pwm;
         }
         return;
     }
+#endif
     hal.rcout->enable_ch(ch);
     hal.rcout->write(ch, pwm);
 }
@@ -743,8 +766,9 @@ bool Plane::arm_motors(AP_Arming::ArmingMethod method)
         return false;
     }
 
-    //only log if arming was successful
+    // only log if arming was successful
     channel_throttle->enable_out();
+
     change_arm_state();
     return true;
 }

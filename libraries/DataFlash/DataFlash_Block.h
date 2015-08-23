@@ -7,11 +7,16 @@
 #ifndef DataFlash_block_h
 #define DataFlash_block_h
 
+#include "DataFlash_Backend.h"
+
 #include <stdint.h>
 
-class DataFlash_Block : public DataFlash_Class
+class DataFlash_Block : public DataFlash_Backend
 {
 public:
+    DataFlash_Block(DataFlash_Class &front) :
+        DataFlash_Backend(front) { }
+
     // initialisation
     virtual void Init(const struct LogStructure *structure, uint8_t num_types) = 0;
     virtual bool CardInserted(void) = 0;
@@ -93,7 +98,7 @@ private:
     void FinishWrite(void);
 
     // Read methods
-    void ReadBlock(void *pBuffer, uint16_t size);
+    bool ReadBlock(void *pBuffer, uint16_t size);
 
     // file numbers
     void SetFileNumber(uint16_t FileNumber);

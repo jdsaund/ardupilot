@@ -3,7 +3,7 @@
 /// @file	AC_HELI_PID.cpp
 /// @brief	Generic PID algorithm
 
-#include <AP_Math.h>
+#include <AP_Math/AP_Math.h>
 #include "AC_HELI_PID.h"
 
 const AP_Param::GroupInfo AC_HELI_PID::var_info[] PROGMEM = {
@@ -22,10 +22,10 @@ const AP_Param::GroupInfo AC_HELI_PID::var_info[] PROGMEM = {
     // @Description: D Gain which produces an output that is proportional to the rate of change of the error
     AP_GROUPINFO("D",    2, AC_HELI_PID, _kd, 0),
 
-    // @Param: FC
-    // @DisplayName: FF FeedForward Gain
-    // @Description: FF Gain which produces an output value that is proportional to the demanded input
-    AP_GROUPINFO("FF",    4, AC_HELI_PID, _ff, 0),
+    // @Param: FF
+    // @DisplayName: Velocity FF FeedForward Gain
+    // @Description: Velocity FF Gain which produces an output value that is proportional to the demanded input
+    AP_GROUPINFO("FF",    4, AC_HELI_PID, _vff, 0),
 
     // @Param: IMAX
     // @DisplayName: PID Integral Maximum
@@ -36,19 +36,21 @@ const AP_Param::GroupInfo AC_HELI_PID::var_info[] PROGMEM = {
     // @DisplayName: PID Input filter frequency in Hz
     // @Description:
     AP_GROUPINFO("FILT_HZ", 6, AC_HELI_PID, _filt_hz, AC_PID_FILT_HZ_DEFAULT),
+
     AP_GROUPEND
 };
 
 /// Constructor for PID
-AC_HELI_PID::AC_HELI_PID(float initial_p, float initial_i, float initial_d, float initial_imax, float initial_filt_hz, float dt, float initial_ff) :
+AC_HELI_PID::AC_HELI_PID(float initial_p, float initial_i, float initial_d, float initial_imax, float initial_filt_hz, float dt, float initial_vff) :
     AC_PID(initial_p, initial_i, initial_d, initial_imax, initial_filt_hz, dt)
 {
-    _ff = initial_ff;
+    _vff = initial_vff;
 }
 
-float AC_HELI_PID::get_ff(float requested_rate) const
+float AC_HELI_PID::get_vff(float requested_rate)
 {
-    return (float)requested_rate * _ff;
+    _pid_info.FF = (float)requested_rate * _vff;
+    return _pid_info.FF;
 }
 
 // This is an integrator which tends to decay to zero naturally
@@ -56,16 +58,17 @@ float AC_HELI_PID::get_ff(float requested_rate) const
 
 float AC_HELI_PID::get_leaky_i(float leak_rate)
 {
-	if(!is_zero(_ki) && !is_zero(_dt)){
-		_integrator -= (float)_integrator * leak_rate;
-		_integrator += ((float)_input * _ki) * _dt;
-		if (_integrator < -_imax) {
-			_integrator = -_imax;
-		} else if (_integrator > _imax) {
-			_integrator = _imax;
-		}
+    if(!is_zero(_ki) && !is_zero(_dt)){
+        _integrator -= (float)_integrator * leak_rate;
+        _integrator += ((float)_input * _ki) * _dt;
+        if (_integrator < -_imax) {
+            _integrator = -_imax;
+            } else if (_integrator > _imax) {
+            _integrator = _imax;
+        }
 
-		return _integrator;
-	}
-	return 0;
+        _pid_info.I = _integrator;
+        return _integrator;
+    }
+    return 0;
 }

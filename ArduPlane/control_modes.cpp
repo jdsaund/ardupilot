@@ -44,7 +44,6 @@ void Plane::read_control_switch()
         set_mode((enum FlightMode)(flight_modes[switchPosition].get()));
 
         oldSwitchPosition = switchPosition;
-        prev_WP_loc = current_loc;
     }
 
     if (g.reset_mission_chan != 0 &&
@@ -72,9 +71,6 @@ void Plane::read_control_switch()
             if (hal.util->get_soft_armed() || setup_failsafe_mixing()) {
                 px4io_override_enabled = true;
                 // disable output channels to force PX4IO override
-                for (uint8_t i=0; i<16; i++) {
-                    hal.rcout->disable_ch(i);
-                }
                 gcs_send_text_P(SEVERITY_LOW, PSTR("PX4IO Override enabled"));
             } else {
                 // we'll try again next loop. The PX4IO code sometimes
@@ -84,10 +80,6 @@ void Plane::read_control_switch()
             }
         } else if (!override && px4io_override_enabled) {
             px4io_override_enabled = false;
-            // re-enable output channels
-            for (uint8_t i=0; i<8; i++) {
-                hal.rcout->enable_ch(i);
-            }
             RC_Channel_aux::enable_aux_servos();
             gcs_send_text_P(SEVERITY_LOW, PSTR("PX4IO Override disabled"));
         }
@@ -136,6 +128,18 @@ void Plane::autotune_restore(void)
 {
     rollController.autotune_restore();
     pitchController.autotune_restore();
+}
+
+/*
+  enable/disable autotune for AUTO modes
+ */
+void Plane::autotune_enable(bool enable)
+{
+    if (enable) {
+        autotune_start();
+    } else {
+        autotune_restore();
+    }
 }
 
 /*

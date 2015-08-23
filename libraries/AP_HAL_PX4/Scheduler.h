@@ -2,7 +2,7 @@
 #ifndef __AP_HAL_PX4_SCHEDULER_H__
 #define __AP_HAL_PX4_SCHEDULER_H__
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_PX4
 #include "AP_HAL_PX4_Namespace.h"
 #include <sys/time.h>
@@ -18,6 +18,7 @@
 #define APM_UART_PRIORITY        60
 #define APM_STORAGE_PRIORITY     59
 #define APM_IO_PRIORITY          58
+#define APM_SHELL_PRIORITY       57
 #define APM_OVERTIME_PRIORITY    10
 #define APM_STARTUP_PRIORITY     10
 
@@ -59,7 +60,7 @@ public:
     void     suspend_timer_procs();
     void     resume_timer_procs();
     void     reboot(bool hold_in_bootloader);
-    void     panic(const prog_char_t *errormsg);
+    void     panic(const prog_char_t *errormsg) NORETURN;
 
     bool     in_timerprocess();
     bool     system_initializing();

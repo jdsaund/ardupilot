@@ -3,7 +3,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-#include <AP_HAL_Boards.h>
+#include <AP_HAL/AP_HAL_Boards.h>
 
 // Just so that it's completely clear...
 #define ENABLED                 1
@@ -79,12 +79,6 @@ enum aux_sw_func {
 #define OCTA_QUAD_FRAME 7
 #define SINGLE_FRAME 8
 #define COAX_FRAME 9
-
-// Internal defines, don't edit and expect things to work
-// -------------------------------------------------------
-
-#define ToRad(x) radians(x)	// *pi/180
-#define ToDeg(x) degrees(x)	// *180/pi
 
 // HIL enumerations
 #define HIL_MODE_DISABLED               0
@@ -202,6 +196,22 @@ enum RTLState {
     RTL_Land
 };
 
+// Alt_Hold states
+enum AltHoldModeState {
+    AltHold_Disarmed,
+    AltHold_Takeoff,
+    AltHold_Flying,
+    AltHold_Landed
+};
+
+// Loiter states
+enum LoiterModeState {
+    Loiter_Disarmed,
+    Loiter_Takeoff,
+    Loiter_Flying,
+    Loiter_Landed
+};
+
 // Flip states
 enum FlipState {
     Flip_Start,
@@ -239,6 +249,7 @@ enum FlipState {
 #define LOG_RATE_MSG                    0x1D
 #define LOG_MOTBATT_MSG                 0x1E
 #define LOG_PARAMTUNE_MSG               0x1F
+#define LOG_HELI_MSG                    0x20
 
 #define MASK_LOG_ATTITUDE_FAST          (1<<0)
 #define MASK_LOG_ATTITUDE_MED           (1<<1)
@@ -252,7 +263,7 @@ enum FlipState {
 #define MASK_LOG_CURRENT                (1<<9)
 #define MASK_LOG_RCOUT                  (1<<10)
 #define MASK_LOG_OPTFLOW                (1<<11)
-#define MASK_LOG_PID                    (1<<12) // deprecated
+#define MASK_LOG_PID                    (1<<12)
 #define MASK_LOG_COMPASS                (1<<13)
 #define MASK_LOG_INAV                   (1<<14) // deprecated
 #define MASK_LOG_CAMERA                 (1<<15)
@@ -312,6 +323,9 @@ enum FlipState {
 #define DATA_MOTORS_EMERGENCY_STOP_CLEARED  55
 #define DATA_MOTORS_INTERLOCK_DISABLED      56
 #define DATA_MOTORS_INTERLOCK_ENABLED       57
+#define DATA_ROTOR_RUNUP_COMPLETE           58  // Heli only
+#define DATA_ROTOR_SPEED_BELOW_CRITICAL     59  // Heli only
+#define DATA_EKF_ALT_RESET                  60
 
 // Centi-degrees to radians
 #define DEGX100 5729.57795f
@@ -339,6 +353,7 @@ enum FlipState {
 // general error codes
 #define ERROR_CODE_ERROR_RESOLVED           0
 #define ERROR_CODE_FAILED_TO_INITIALISE     1
+#define ERROR_CODE_UNHEALTHY                4
 // subsystem specific error codes -- radio
 #define ERROR_CODE_RADIO_LATE_FRAME         2
 // subsystem specific error codes -- failsafe_thr, batt, gps
@@ -354,7 +369,7 @@ enum FlipState {
 // subsystem specific error codes -- flip
 #define ERROR_CODE_FLIP_ABANDONED           2
 // subsystem specific error codes -- autotune
-#define ERROR_CODE_AUTOTUNE_BAD_GAINS       2
+
 // parachute failed to deploy because of low altitude or landed
 #define ERROR_CODE_PARACHUTE_TOO_LOW        2
 #define ERROR_CODE_PARACHUTE_LANDED         3
@@ -386,11 +401,10 @@ enum FlipState {
 #define FS_BATT_LAND                        1       // switch to LAND mode on battery failsafe
 #define FS_BATT_RTL                         2       // switch to RTL mode on battery failsafe
 
-// GPS Failsafe definitions (FS_GPS_ENABLE parameter)
-#define FS_GPS_DISABLED                     0       // GPS failsafe disabled
-#define FS_GPS_LAND                         1       // switch to LAND mode on GPS Failsafe
-#define FS_GPS_ALTHOLD                      2       // switch to ALTHOLD mode on GPS failsafe
-#define FS_GPS_LAND_EVEN_STABILIZE          3       // switch to LAND mode on GPS failsafe even if in a manual flight mode like Stabilize
+// EKF failsafe definitions (FS_EKF_ACTION parameter)
+#define FS_EKF_ACTION_LAND                  1       // switch to LAND mode on EKF failsafe
+#define FS_EKF_ACTION_ALTHOLD               2       // switch to ALTHOLD mode on EKF failsafe
+#define FS_EKF_ACTION_LAND_EVEN_STABILIZE   3       // switch to Land mode on EKF failsafe even if in a manual flight mode like stabilize
 
 // for mavlink SET_POSITION_TARGET messages
 #define MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE      ((1<<0) | (1<<1) | (1<<2))

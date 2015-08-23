@@ -23,7 +23,7 @@
 #ifndef __LOW_PASS_FILTER_H__
 #define __LOW_PASS_FILTER_H__
 
-#include <AP_Math.h>
+#include <AP_Math/AP_Math.h>
 #include "FilterClass.h"
 
 // DigitalLPF implements the filter math
@@ -155,6 +155,15 @@ public:
         ret.x = _filter_x.apply(sample.x, _cutoff_freq, dt);
         ret.y = _filter_y.apply(sample.y, _cutoff_freq, dt);
         ret.z = _filter_z.apply(sample.z, _cutoff_freq, dt);
+        return ret;
+    }
+
+    // get latest filtered value from filter (equal to the value returned by latest call to apply method)
+    Vector3f get() const {
+        Vector3f ret;
+        ret.x = _filter_x.get();
+        ret.y = _filter_y.get();
+        ret.z = _filter_z.get();
         return ret;
     }
 

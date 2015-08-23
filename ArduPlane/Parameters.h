@@ -3,7 +3,7 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#include <AP_Common.h>
+#include <AP_Common/AP_Common.h>
 
 // Global parameter class.
 //
@@ -138,6 +138,7 @@ public:
         k_param_glide_slope_threshold,
         k_param_rudder_only,
         k_param_gcs3,            // 93
+        k_param_gcs_pid_mask,
 
         // 100: Arming parameters
         k_param_arming = 100,
@@ -447,7 +448,9 @@ public:
     AP_Int16 pitch_trim_cd;
     AP_Int16 FBWB_min_altitude_cm;
     AP_Int8  hil_servos;
+#if HIL_SUPPORT
     AP_Int8  hil_mode;
+#endif
 
     AP_Int8 compass_enabled;
     AP_Int8 flap_1_percent;
@@ -482,6 +485,7 @@ public:
 #if CONFIG_HAL_BOARD == HAL_BOARD_PX4
     AP_Int8 override_channel;
 #endif
+    AP_Int16 gcs_pid_mask;
 
     // RC channels
     RC_Channel rc_1;

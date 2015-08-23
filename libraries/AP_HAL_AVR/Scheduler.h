@@ -2,7 +2,7 @@
 #ifndef __AP_HAL_AVR_SCHEDULER_H__
 #define __AP_HAL_AVR_SCHEDULER_H__
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #include "AP_HAL_AVR_Namespace.h"
 
 #define AVR_SCHEDULER_MAX_TIMER_PROCS 4
@@ -45,7 +45,7 @@ public:
     bool     system_initializing();
     void     system_initialized();
 
-    void     panic(const prog_char_t *errormsg);
+    void     panic(const prog_char_t *errormsg) NORETURN;
     void     reboot(bool hold_in_bootloader);
 
     void     set_timer_speed(uint16_t timer_hz);

@@ -1,6 +1,6 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #if (CONFIG_HAL_BOARD == HAL_BOARD_APM1 || CONFIG_HAL_BOARD == HAL_BOARD_APM2)
 
 #include <avr/io.h>
@@ -197,7 +197,7 @@ void AVRScheduler::_run_timer_procs(bool called_from_isr) {
     if (!_timer_suspended) {
         // now call the timer based drivers
         for (int i = 0; i < _num_timer_procs; i++) {
-            if (_timer_proc[i] != NULL) {
+            if (_timer_proc[i]) {
                 _timer_proc[i]();
             }
         }

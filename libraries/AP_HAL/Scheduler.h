@@ -6,7 +6,7 @@
 #include "AP_HAL_Boards.h"
 
 #include <stdint.h>
-#include <AP_Progmem.h>
+#include <AP_Progmem/AP_Progmem.h>
 
 class AP_HAL::Scheduler {
 public:
@@ -54,7 +54,7 @@ public:
     virtual bool     system_initializing() = 0;
     virtual void     system_initialized() = 0;
 
-    virtual void     panic(const prog_char_t *errormsg) = 0;
+    virtual void     panic(const prog_char_t *errormsg) NORETURN = 0;
     virtual void     reboot(bool hold_in_bootloader) = 0;
 
     /**

@@ -1,6 +1,6 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_PX4
 
 #include "AP_HAL_PX4.h"
@@ -22,7 +22,7 @@
 #include "Storage.h"
 #include "RCOutput.h"
 #include "RCInput.h"
-#include <AP_Scheduler.h>
+#include <AP_Scheduler/AP_Scheduler.h>
 
 using namespace PX4;
 
@@ -242,7 +242,7 @@ void PX4Scheduler::resume_timer_procs()
 
 void PX4Scheduler::reboot(bool hold_in_bootloader) 
 {
-	systemreset(hold_in_bootloader);
+	px4_systemreset(hold_in_bootloader);
 }
 
 void PX4Scheduler::_run_timers(bool called_from_timer_thread)
@@ -255,7 +255,7 @@ void PX4Scheduler::_run_timers(bool called_from_timer_thread)
     if (!_timer_suspended) {
         // now call the timer based drivers
         for (int i = 0; i < _num_timer_procs; i++) {
-            if (_timer_proc[i] != NULL) {
+            if (_timer_proc[i]) {
                 _timer_proc[i]();
             }
         }
@@ -315,7 +315,7 @@ void PX4Scheduler::_run_io(void)
     if (!_timer_suspended) {
         // now call the IO based drivers
         for (int i = 0; i < _num_io_procs; i++) {
-            if (_io_proc[i] != NULL) {
+            if (_io_proc[i]) {
                 _io_proc[i]();
             }
         }

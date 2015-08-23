@@ -17,10 +17,10 @@
 #ifndef __RANGEFINDER_H__
 #define __RANGEFINDER_H__
 
-#include <AP_Common.h>
-#include <AP_HAL.h>
-#include <AP_Param.h>
-#include <AP_Math.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Param/AP_Param.h>
+#include <AP_Math/AP_Math.h>
 
 // Maximum number of range finder instances available on this platform
 #define RANGEFINDER_MAX_INSTANCES 2
@@ -34,13 +34,8 @@ class RangeFinder
 {
 public:
     friend class AP_RangeFinder_Backend;
-    RangeFinder(void) :
-    primary_instance(0),
-    num_instances(0),
-    estimated_terrain_height(0)
-    {
-        AP_Param::setup_object_defaults(this, var_info);
-    }
+
+    RangeFinder(void);
 
     // RangeFinder driver types
     enum RangeFinder_Type {
@@ -49,7 +44,8 @@ public:
         RangeFinder_TYPE_MBI2C  = 2,
         RangeFinder_TYPE_PLI2C  = 3,
         RangeFinder_TYPE_PX4    = 4,
-        RangeFinder_TYPE_PX4_PWM= 5
+        RangeFinder_TYPE_PX4_PWM= 5,
+        RangeFinder_TYPE_BBB_PRU= 6
     };
 
     enum RangeFinder_Function {

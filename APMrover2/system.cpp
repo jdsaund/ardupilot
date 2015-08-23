@@ -26,6 +26,7 @@ int8_t Rover::main_menu_help(uint8_t argc, const Menu::arg *argv)
 }
 
 // Command/function table for the top-level menu.
+
 static const struct Menu::command main_menu_commands[] PROGMEM = {
 //   command		function called
 //   =======        ===============
@@ -209,11 +210,10 @@ void Rover::init_ardupilot()
     }
 #endif
 
-	startup_ground();
+	init_capabilities();
 
-	if (should_log(MASK_LOG_CMD)) {
-        Log_Write_Startup(TYPE_GROUNDSTART_MSG);
-    }
+	startup_ground();
+    Log_Write_Startup(TYPE_GROUNDSTART_MSG);
 
     set_mode((enum mode)g.initial_mode.get());
 
@@ -279,6 +279,11 @@ void Rover::set_mode(enum mode mode)
 		// don't switch modes if we are already in the correct mode.
 		return;
 	}
+
+    // If we are changing out of AUTO mode reset the loiter timer
+    if (control_mode == AUTO)
+        loiter_time = 0;
+
 	control_mode = mode;
     throttle_last = 0;
     throttle = 500;
@@ -308,6 +313,11 @@ void Rover::set_mode(enum mode mode)
 
         case GUIDED:
             rtl_complete = false;
+            /*
+              when entering guided mode we set the target as the current
+              location. This matches the behaviour of the copter code.
+            */
+            guided_WP = current_loc;
             set_guided_WP();
             break;
 
@@ -331,6 +341,7 @@ bool Rover::mavlink_set_mode(uint8_t mode)
     case HOLD:
     case LEARNING:
     case STEERING:
+    case GUIDED:
     case AUTO:
     case RTL:
         set_mode((enum mode)mode);

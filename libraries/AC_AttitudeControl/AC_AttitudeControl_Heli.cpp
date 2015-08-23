@@ -1,7 +1,7 @@
 // -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: t -*-
 
 #include "AC_AttitudeControl_Heli.h"
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl_Heli::var_info[] PROGMEM = {
@@ -14,9 +14,10 @@ const AP_Param::GroupInfo AC_AttitudeControl_Heli::var_info[] PROGMEM = {
 // passthrough_bf_roll_pitch_rate_yaw - passthrough the pilots roll and pitch inputs directly to swashplate for flybar acro mode
 void AC_AttitudeControl_Heli::passthrough_bf_roll_pitch_rate_yaw(float roll_passthrough, float pitch_passthrough, float yaw_rate_bf)
 {
-    // store roll and pitch passthroughs
+    // store roll, pitch and passthroughs
     _passthrough_roll = roll_passthrough;
     _passthrough_pitch = pitch_passthrough;
+    _passthrough_yaw = yaw_rate_bf;
 
     // set rate controller to use pass through
     _flags_heli.flybar_passthrough = true;
@@ -86,7 +87,11 @@ void AC_AttitudeControl_Heli::rate_controller_run()
     } else {
         rate_bf_to_motor_roll_pitch(_rate_bf_target.x, _rate_bf_target.y);
     }
-    _motors.set_yaw(rate_bf_to_motor_yaw(_rate_bf_target.z));
+    if (_flags_heli.tail_passthrough) {
+        _motors.set_yaw(_passthrough_yaw);
+    } else {
+        _motors.set_yaw(rate_bf_to_motor_yaw(_rate_bf_target.z));
+    }
 }
 
 //
@@ -112,7 +117,9 @@ void AC_AttitudeControl_Heli::rate_bf_to_motor_roll_pitch(float rate_roll_target
 
     // input to PID controller
     _pid_rate_roll.set_input_filter_all(rate_roll_error);
+    _pid_rate_roll.set_desired_rate(rate_roll_target_cds);
     _pid_rate_pitch.set_input_filter_all(rate_pitch_error);
+    _pid_rate_pitch.set_desired_rate(rate_pitch_target_cds);
 
     // call p and d controllers
     roll_pd = _pid_rate_roll.get_p() + _pid_rate_roll.get_d();
@@ -154,8 +161,8 @@ void AC_AttitudeControl_Heli::rate_bf_to_motor_roll_pitch(float rate_roll_target
         }
     }
     
-    roll_ff = roll_feedforward_filter.apply(((AC_HELI_PID&)_pid_rate_roll).get_ff(rate_roll_target_cds), _dt);
-    pitch_ff = pitch_feedforward_filter.apply(((AC_HELI_PID&)_pid_rate_pitch).get_ff(rate_pitch_target_cds), _dt);
+    roll_ff = roll_feedforward_filter.apply(((AC_HELI_PID&)_pid_rate_roll).get_vff(rate_roll_target_cds), _dt);
+    pitch_ff = pitch_feedforward_filter.apply(((AC_HELI_PID&)_pid_rate_pitch).get_vff(rate_pitch_target_cds), _dt);
 
     // add feed forward and final output
     roll_out = roll_pd + roll_i + roll_ff;
@@ -262,7 +269,7 @@ static LowPassFilterFloat rate_dynamics_filter;     // Rate Dynamics filter
 // rate_bf_to_motor_yaw - ask the rate controller to calculate the motor outputs to achieve the target rate in centi-degrees / second
 float AC_AttitudeControl_Heli::rate_bf_to_motor_yaw(float rate_target_cds)
 {
-    float pd,i,ff;            // used to capture pid values for logging
+    float pd,i,vff;         // used to capture pid values for logging
     float current_rate;     // this iteration's rate
     float rate_error;       // simply target_rate - current_rate
     float yaw_out;
@@ -276,6 +283,7 @@ float AC_AttitudeControl_Heli::rate_bf_to_motor_yaw(float rate_target_cds)
 
     // send input to PID controller
     _pid_rate_yaw.set_input_filter_all(rate_error);
+    _pid_rate_yaw.set_desired_rate(rate_target_cds);
 
     // get p and d
     pd = _pid_rate_yaw.get_p() + _pid_rate_yaw.get_d();
@@ -292,10 +300,10 @@ float AC_AttitudeControl_Heli::rate_bf_to_motor_yaw(float rate_target_cds)
         }
     }
     
-    ff = yaw_feedforward_filter.apply(((AC_HELI_PID&)_pid_rate_yaw).get_ff(rate_target_cds), _dt);
+    vff = yaw_velocity_feedforward_filter.apply(((AC_HELI_PID&)_pid_rate_yaw).get_vff(rate_target_cds), _dt);
     
     // add feed forward
-    yaw_out = pd + i + ff;
+    yaw_out = pd + i + vff;
 
     // constrain output and update limit flag
     if (fabsf(yaw_out) > AC_ATTITUDE_RATE_YAW_CONTROLLER_OUT_MAX) {

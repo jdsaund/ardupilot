@@ -9,7 +9,7 @@
 // Please see the notes in FlymaplePortingNotes.txt in this directory for 
 // information about disabling interrupts on Flymaple
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_FLYMAPLE
 
@@ -204,7 +204,7 @@ void FLYMAPLEScheduler::_run_timer_procs(bool called_from_isr)
     if (!_timer_suspended) {
         // now call the timer based drivers
         for (int i = 0; i < _num_timer_procs; i++) {
-            if (_timer_proc[i] != NULL) {
+            if (_timer_proc[i]) {
                 _timer_proc[i]();
             }
         }

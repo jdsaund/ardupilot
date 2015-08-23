@@ -15,14 +15,14 @@
 #ifndef AP_Mission_h
 #define AP_Mission_h
 
-#include <AP_HAL.h>
-#include <AP_Vehicle.h>
-#include <GCS_MAVLink.h>
-#include <AP_Math.h>
-#include <AP_Common.h>
-#include <AP_Param.h>
-#include <AP_AHRS.h>
-#include <../StorageManager/StorageManager.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Vehicle/AP_Vehicle.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
+#include <AP_Math/AP_Math.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_Param/AP_Param.h>
+#include <AP_AHRS/AP_AHRS.h>
+#include <StorageManager/StorageManager.h>
 
 // definitions
 #define AP_MISSION_EEPROM_VERSION           0x65AE  // version number stored in first four bytes of eeprom.  increment this by one when eeprom format is changed
@@ -146,6 +146,13 @@ public:
         uint8_t action;         // action (0 = release, 1 = grab)
     };
 
+    // high altitude balloon altitude wait
+    struct PACKED Altitude_Wait {
+        float altitude; // meters
+        float descent_rate; // m/s
+        uint8_t wiggle_time; // seconds
+    };
+
     // nav guided command
     struct PACKED Guided_Limits_Command {
         // max time is held in p1 field
@@ -200,6 +207,9 @@ public:
         // do-guided-limits
         Guided_Limits_Command guided_limits;
 
+        // cam trigg distance
+        Altitude_Wait altitude_wait;
+
         // location
         Location location;      // Waypoint location
 
@@ -216,13 +226,8 @@ public:
     };
 
     // main program function pointers
-#if APM_BUILD_DELEGATES
-    typedef DELEGATE_FUNCTION1(bool, const Mission_Command&) mission_cmd_fn_t;
-    typedef DELEGATE_FUNCTION0(void) mission_complete_fn_t;
-#else
-    typedef bool (*mission_cmd_fn_t)(const Mission_Command& cmd);
-    typedef void (*mission_complete_fn_t)(void);
-#endif
+    FUNCTOR_TYPEDEF(mission_cmd_fn_t, bool, const Mission_Command&);
+    FUNCTOR_TYPEDEF(mission_complete_fn_t, void);
 
     // mission state enumeration
     enum mission_state {

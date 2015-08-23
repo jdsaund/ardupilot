@@ -9,14 +9,14 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
 {
     // log when new commands start
     if (should_log(MASK_LOG_CMD)) {
-        Log_Write_Cmd(cmd);
+        DataFlash.Log_Write_Mission_Cmd(mission, cmd);
     }
 
     // special handling for nav vs non-nav commands
     if (AP_Mission::is_nav_cmd(cmd)) {
         // set land_complete to false to stop us zeroing the throttle
         auto_state.land_complete = false;
-        auto_state.land_sink_rate = 0;
+        auto_state.sink_rate = 0;
 
         // set takeoff_complete to true so we don't add extra evevator
         // except in a takeoff
@@ -24,7 +24,13 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
 
         // if a go around had been commanded, clear it now.
         auto_state.commanded_go_around = false;
+
+        // start non-idle
+        auto_state.idle_mode = false;
         
+        // once landed, post some landing statistics to the GCS
+        auto_state.post_landing_stats = false;
+
         gcs_send_text_fmt(PSTR("Executing nav command ID #%i"),cmd.id);
     } else {
         gcs_send_text_fmt(PSTR("Executing command ID #%i"),cmd.id);
@@ -66,6 +72,10 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
 
     case MAV_CMD_NAV_CONTINUE_AND_CHANGE_ALT:
         do_continue_and_change_alt(cmd);
+        break;
+
+    case MAV_CMD_NAV_ALTITUDE_WAIT:
+        do_altitude_wait(cmd);
         break;
 
     // Conditional commands
@@ -140,6 +150,10 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
 #endif
         break;
 
+    case MAV_CMD_DO_AUTOTUNE_ENABLE:
+        autotune_enable(cmd.p1);
+        break;
+
 #if CAMERA == ENABLED
     case MAV_CMD_DO_CONTROL_VIDEO:                      // Control on-board camera capturing. |Camera ID (-1 for all)| Transmission: 0: disabled, 1: enabled compressed, 2: enabled raw| Transmission mode: 0: video stream, >0: single images every n seconds (decimal)| Recording: 0: disabled, 1: enabled compressed, 2: enabled raw| Empty| Empty| Empty|
         break;
@@ -174,6 +188,13 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
             // set mount's target location
             camera_mount.set_roi_target(cmd.content.location);
         }
+        break;
+
+    case MAV_CMD_DO_MOUNT_CONTROL:          // 205
+        // point the camera to a specified angle
+        camera_mount.set_angle_targets(cmd.content.mount_control.roll, 
+                                       cmd.content.mount_control.pitch, 
+                                       cmd.content.mount_control.yaw);
         break;
 #endif
     }
@@ -220,19 +241,19 @@ bool Plane::verify_command(const AP_Mission::Mission_Command& cmd)        // Ret
     case MAV_CMD_NAV_CONTINUE_AND_CHANGE_ALT:
         return verify_continue_and_change_alt();
 
+    case MAV_CMD_NAV_ALTITUDE_WAIT:
+        return verify_altitude_wait(cmd);
+
     // Conditional commands
 
     case MAV_CMD_CONDITION_DELAY:
         return verify_wait_delay();
-        break;
 
     case MAV_CMD_CONDITION_DISTANCE:
         return verify_within_distance();
-        break;
 
     case MAV_CMD_CONDITION_CHANGE_ALT:
         return verify_change_alt();
-        break;
 
     // do commands (always return true)
     case MAV_CMD_DO_CHANGE_SPEED:
@@ -247,10 +268,10 @@ bool Plane::verify_command(const AP_Mission::Mission_Command& cmd)        // Ret
     case MAV_CMD_DO_SET_CAM_TRIGG_DIST:
     case MAV_CMD_NAV_ROI:
     case MAV_CMD_DO_MOUNT_CONFIGURE:
-    case MAV_CMD_DO_MOUNT_CONTROL:
     case MAV_CMD_DO_INVERTED_FLIGHT:
     case MAV_CMD_DO_LAND_START:
     case MAV_CMD_DO_FENCE_ENABLE:
+    case MAV_CMD_DO_AUTOTUNE_ENABLE:
         return true;
 
     default:
@@ -356,6 +377,12 @@ void Plane::do_continue_and_change_alt(const AP_Mission::Mission_Command& cmd)
 {
     next_WP_loc.alt = cmd.content.location.alt + home.alt;
     reset_offset_altitude();
+}
+
+void Plane::do_altitude_wait(const AP_Mission::Mission_Command& cmd)
+{
+    // set all servos to trim until we reach altitude or descent speed
+    auto_state.idle_mode = true;
 }
 
 void Plane::do_loiter_to_alt(const AP_Mission::Mission_Command& cmd) 
@@ -561,7 +588,15 @@ bool Plane::verify_loiter_to_alt()
                                        next_nav_cmd)) {
             //no next waypoint to shoot for -- go ahead and break out of loiter
             return true;        
-        } 
+        }
+
+        if (get_distance(next_WP_loc, next_nav_cmd.content.location) < labs(g.loiter_radius)) {
+            /* Whenever next waypoint is within the loiter radius, 
+               maintaining loiter would prevent us from ever pointing toward the next waypoint.
+               Hence break out of loiter immediately
+             */
+            return true;
+        }
 
         // Bearing in radians
         int32_t bearing_cd = get_bearing_cd(current_loc,next_nav_cmd.content.location);
@@ -621,6 +656,34 @@ bool Plane::verify_continue_and_change_alt()
 
     //keep flying the same course
     nav_controller->update_waypoint(prev_WP_loc, next_WP_loc);
+
+    return false;
+}
+
+/*
+  see if we have reached altitude or descent speed
+ */
+bool Plane::verify_altitude_wait(const AP_Mission::Mission_Command &cmd)
+{
+    if (current_loc.alt > cmd.content.altitude_wait.altitude*100.0f) {
+        gcs_send_text_P(SEVERITY_LOW,PSTR("Reached altitude"));
+        return true;
+    }
+    if (auto_state.sink_rate > cmd.content.altitude_wait.descent_rate) {
+        gcs_send_text_fmt(PSTR("Reached descent rate %.1f m/s"), (double)auto_state.sink_rate);
+        return true;        
+    }
+
+    // if requested, wiggle servos
+    if (cmd.content.altitude_wait.wiggle_time != 0) {
+        static uint32_t last_wiggle_ms;
+        if (auto_state.idle_wiggle_stage == 0 &&
+            hal.scheduler->millis() - last_wiggle_ms > cmd.content.altitude_wait.wiggle_time*1000) {
+            auto_state.idle_wiggle_stage = 1;
+            last_wiggle_ms = hal.scheduler->millis();
+        }
+        // idle_wiggle_stage is updated in set_servos_idle()
+    }
 
     return false;
 }
@@ -735,6 +798,7 @@ void Plane::do_set_home(const AP_Mission::Mission_Command& cmd)
     } else {
         ahrs.set_home(cmd.content.location);
         home_is_set = HOME_SET_NOT_LOCKED;
+        Log_Write_Home_And_Origin();
     }
 }
 
@@ -767,10 +831,12 @@ void Plane::do_take_picture()
 // log_picture - log picture taken and send feedback to GCS
 void Plane::log_picture()
 {
+#if CAMERA == ENABLED
     gcs_send_message(MSG_CAMERA_FEEDBACK);
     if (should_log(MASK_LOG_CAMERA)) {
         DataFlash.Log_Write_Camera(ahrs, gps, current_loc);
     }
+#endif
 }
 
 // start_command_callback - callback function called from ap-mission when it begins a new mission command
@@ -788,7 +854,14 @@ bool Plane::start_command_callback(const AP_Mission::Mission_Command &cmd)
 bool Plane::verify_command_callback(const AP_Mission::Mission_Command& cmd)
 {
     if (control_mode == AUTO) {
-        return verify_command(cmd);
+        bool cmd_complete = verify_command(cmd);
+
+        // send message to GCS
+        if (cmd_complete) {
+            gcs_send_mission_item_reached_message(cmd.index);
+        }
+
+        return cmd_complete;
     }
     return false;
 }

@@ -1,6 +1,6 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 
 #include "AP_HAL_SITL.h"
@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <fenv.h>
+#include "fenv_polyfill.h"
 
 using namespace HALSITL;
 
@@ -221,7 +222,7 @@ void SITLScheduler::_run_timer_procs(bool called_from_isr)
     if (!_timer_suspended) {
         // now call the timer based drivers
         for (int i = 0; i < _num_timer_procs; i++) {
-            if (_timer_proc[i] != NULL) {
+            if (_timer_proc[i]) {
                 _timer_proc[i]();
             }
         }
@@ -247,7 +248,7 @@ void SITLScheduler::_run_io_procs(bool called_from_isr)
     if (!_timer_suspended) {
         // now call the IO based drivers
         for (int i = 0; i < _num_io_procs; i++) {
-            if (_io_proc[i] != NULL) {
+            if (_io_proc[i]) {
                 _io_proc[i]();
             }
         }

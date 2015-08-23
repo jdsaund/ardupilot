@@ -9,18 +9,18 @@
 #ifndef __AP_GIMBAL_H__
 #define __AP_GIMBAL_H__
 
-#include <AP_HAL.h>
-#include <AP_AHRS.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_AHRS/AP_AHRS.h>
 
 #if AP_AHRS_NAVEKF_AVAILABLE
 
-#include <AP_Math.h>
-#include <AP_Common.h>
-#include <AP_GPS.h>
-#include <GCS_MAVLink.h>
-#include <AP_Mount.h>
-#include <AP_SmallEKF.h>
-#include <AP_NavEKF.h>
+#include <AP_Math/AP_Math.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_GPS/AP_GPS.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
+#include "AP_Mount.h"
+#include <AP_NavEKF/AP_SmallEKF.h>
+#include <AP_NavEKF/AP_NavEKF.h>
 
 class AP_Gimbal
 {
@@ -35,10 +35,12 @@ public:
         yawErrorLimit(0.1f)
     {
         _compid = compid;
+        memset(&_report_msg, 0, sizeof(_report_msg));
     }
 
     void    update_target(Vector3f newTarget);
     void    receive_feedback(mavlink_channel_t chan, mavlink_message_t *msg);
+    void    send_report(mavlink_channel_t chan) const;
 
     Vector3f getGimbalEstimateEF();
 
@@ -71,6 +73,8 @@ private:
     float const yawErrorLimit;
 
     uint8_t _compid;
+
+    mavlink_gimbal_report_t _report_msg;
 
     void send_control(mavlink_channel_t chan);
     void update_state();

@@ -16,7 +16,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_PX4
 #include "OreoLED_PX4.h"
@@ -64,7 +64,7 @@ bool OreoLED_PX4::init()
         // set overall health
         _overall_health = true;
         // register timer
-        hal.scheduler->register_io_process(AP_HAL_MEMBERPROC(&OreoLED_PX4::update_timer));
+        hal.scheduler->register_io_process(FUNCTOR_BIND_MEMBER(&OreoLED_PX4::update_timer, void));
     }
 
     // return health

@@ -7,7 +7,7 @@
    given directory
  */
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 
 #if HAL_OS_POSIX_IO
 #include "DataFlash.h"
@@ -20,11 +20,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <assert.h>
-#include <AP_Math.h>
+#include <AP_Math/AP_Math.h>
 #include <stdio.h>
 #include <time.h>
 #include <dirent.h>
-#include "../AP_HAL/utility/RingBuffer.h"
+#include <AP_HAL/utility/RingBuffer.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -34,9 +34,11 @@ extern const AP_HAL::HAL& hal;
 /*
   constructor
  */
-DataFlash_File::DataFlash_File(const char *log_directory) :
+DataFlash_File::DataFlash_File(DataFlash_Class &front, const char *log_directory) :
+    DataFlash_Backend(front),
     _write_fd(-1),
     _read_fd(-1),
+    _read_fd_log_num(0),
     _read_offset(0),
     _write_offset(0),
     _initialised(false),
@@ -77,7 +79,7 @@ DataFlash_File::DataFlash_File(const char *log_directory) :
 // initialisation
 void DataFlash_File::Init(const struct LogStructure *structure, uint8_t num_types)
 {
-    DataFlash_Class::Init(structure, num_types);
+    DataFlash_Backend::Init(structure, num_types);
     // create the log directory if need be
     int ret;
     struct stat st;
@@ -96,6 +98,11 @@ void DataFlash_File::Init(const struct LogStructure *structure, uint8_t num_type
         closedir(d);
     }
 #endif
+
+    const char* custom_dir = hal.util->get_custom_log_directory();
+    if (custom_dir != NULL){
+        _log_directory = custom_dir;
+    }
 
     ret = stat(_log_directory, &st);
     if (ret == -1) {
@@ -126,7 +133,7 @@ void DataFlash_File::Init(const struct LogStructure *structure, uint8_t num_type
     }
     _writebuf_head = _writebuf_tail = 0;
     _initialised = true;
-    hal.scheduler->register_io_process(AP_HAL_MEMBERPROC(&DataFlash_File::_io_timer));
+    hal.scheduler->register_io_process(FUNCTOR_BIND_MEMBER(&DataFlash_File::_io_timer, void));
 }
 
 // return true for CardInserted() if we successfully initialised
@@ -229,15 +236,18 @@ void DataFlash_File::WriteBlock(const void *pBuffer, uint16_t size)
 /*
   read a packet. The header bytes have already been read.
 */
-void DataFlash_File::ReadBlock(void *pkt, uint16_t size)
+bool DataFlash_File::ReadBlock(void *pkt, uint16_t size)
 {
     if (_read_fd == -1 || !_initialised || _open_error) {
-        return;
+        return false;
     }
 
     memset(pkt, 0, size);
-    ::read(_read_fd, pkt, size);
+    if (::read(_read_fd, pkt, size) != size) {
+        return false;
+    }
     _read_offset += size;
+    return true;
 }
 
 
@@ -265,6 +275,18 @@ uint16_t DataFlash_File::find_last_log(void)
     return ret;
 }
 
+bool DataFlash_File::_log_exists(uint16_t log_num)
+{
+    char *fname = _log_file_name(log_num);
+    if (fname == NULL) {
+        return 0;
+    }
+    struct stat st;
+    // stat return 0 if the file exists:
+    bool ret = ::stat(fname, &st) ? false : true;
+    free(fname);
+    return ret;
+}
 
 uint32_t DataFlash_File::_get_log_size(uint16_t log_num)
 {
@@ -386,7 +408,7 @@ uint16_t DataFlash_File::get_num_logs(void)
     uint16_t ret;
     uint16_t high = find_last_log();
     for (ret=0; ret<high; ret++) {
-        if (_get_log_size(high - ret) <= 0) {
+        if (!_log_exists(high - ret)) {
             break;
         }
     }
@@ -578,7 +600,6 @@ void DataFlash_File::ListAvailableLogs(AP_HAL::BetterStream *port)
         char *filename = _log_file_name(log_num);
         if (filename != NULL) {
             size = _get_log_size(log_num);
-            if (size != 0) {
                 struct stat st;
                 if (stat(filename, &st) == 0) {
                     struct tm *tm = gmtime(&st.st_mtime);
@@ -592,13 +613,31 @@ void DataFlash_File::ListAvailableLogs(AP_HAL::BetterStream *port)
                                    (unsigned)tm->tm_hour,
                                    (unsigned)tm->tm_min);
                 }
-            }
             free(filename);
         }
     }
     port->println();    
 }
 
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL || CONFIG_HAL_BOARD == HAL_BOARD_LINUX
+void DataFlash_File::flush(void)
+{
+    uint16_t _tail;
+    uint32_t tnow = hal.scheduler->micros();
+    hal.scheduler->suspend_timer_procs();
+    while (_write_fd != -1 && _initialised && !_open_error &&
+           BUF_AVAILABLE(_writebuf)) {
+        // convince the IO timer that it really is OK to write out
+        // less than _writebuf_chunk bytes:
+        _last_write_time = tnow - 2000000;
+        _io_timer();
+    }
+    hal.scheduler->resume_timer_procs();
+    if (_write_fd != -1) {
+        ::fsync(_write_fd);
+    }
+}
+#endif
 
 void DataFlash_File::_io_timer(void)
 {
@@ -614,8 +653,8 @@ void DataFlash_File::_io_timer(void)
     uint32_t tnow = hal.scheduler->micros();
     if (nbytes < _writebuf_chunk && 
         tnow - _last_write_time < 2000000UL) {
-        // write in 512 byte chunks, but always write at least once
-        // per 2 seconds if data is available
+        // write in _writebuf_chunk-sized chunks, but always write at
+        // least once per 2 seconds if data is available
         return;
     }
 

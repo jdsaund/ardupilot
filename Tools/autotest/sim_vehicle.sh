@@ -24,6 +24,9 @@ NO_REBUILD=0
 START_HIL=0
 TRACKER_ARGS=""
 EXTERNAL_SIM=0
+MODEL=""
+BREAKPOINT=""
+OVERRIDE_BUILD_TARGET=""
 
 usage()
 {
@@ -36,6 +39,8 @@ Options:
     -V               enable valgrind for memory access checking (very slow!)
     -G               use gdb for debugging ardupilot
     -g               use gdb for debugging ardupilot, but don't auto-start
+    -D               build with debugging
+    -B               add a breakpoint at given location in debugger
     -T               start an antenna tracker instance
     -A               pass arguments to antenna tracker
     -t               set antenna tracker start location
@@ -45,10 +50,11 @@ Options:
     -N               don't rebuild before starting ardupilot
     -w               wipe EEPROM and reload parameters
     -R               reverse throttle in plane
-    -D               build with debugging
+    -M               enable MAVLink gimbal
     -f FRAME         set aircraft frame type
                      for copters can choose +, X, quad or octa
                      for planes can choose elevon or vtail
+    -b BUILD_TARGET  override SITL build target
     -j NUM_PROC      number of processors to use during build (default 1)
     -H               start HIL
     -e               use external simulator
@@ -69,7 +75,7 @@ EOF
 
 
 # parse options. Thanks to http://wiki.bash-hackers.org/howto/getopts_tutorial
-while getopts ":I:VgGcj:TA:t:L:l:v:hwf:RNHeMS:D" opt; do
+while getopts ":I:VgGcj:TA:t:L:l:v:hwf:RNHeMS:DB:b:" opt; do
   case $opt in
     v)
       VEHICLE=$OPTARG
@@ -101,6 +107,9 @@ while getopts ":I:VgGcj:TA:t:L:l:v:hwf:RNHeMS:D" opt; do
       ;;
     D)
       DEBUG_BUILD=1
+      ;;
+    B)
+      BREAKPOINT="$OPTARG"
       ;;
     M)
       USE_MAVLINK_GIMBAL=1
@@ -136,6 +145,9 @@ while getopts ":I:VgGcj:TA:t:L:l:v:hwf:RNHeMS:D" opt; do
     e)
       EXTERNAL_SIM=1
       ;;
+    b)
+      OVERRIDE_BUILD_TARGET="$OPTARG"
+      ;;
     h)
       usage
       exit 0
@@ -156,10 +168,10 @@ shift $((OPTIND-1))
 kill_tasks() 
 {
     [ "$INSTANCE" -eq "0" ] && {
-        killall -q JSBSim lt-JSBSim ArduPlane.elf ArduCopter.elf APMrover2.elf AntennaTracker.elf
+	for pname in JSBSim lt-JSBSim ArduPlane.elf ArduCopter.elf APMrover2.elf AntennaTracker.elf JSBSIm.exe MAVProxy.exe; do
+	    pkill "$pname"
+	done
         pkill -f runsim.py
-        pkill -f sim_tracker.py
-        pkill -f sim_wrapper.py
     }
 }
 
@@ -175,10 +187,13 @@ SIMIN_PORT="127.0.0.1:"$((5502+10*$INSTANCE))
 SIMOUT_PORT="127.0.0.1:"$((5501+10*$INSTANCE))
 FG_PORT="127.0.0.1:"$((5503+10*$INSTANCE))
 
-set -x
-
 [ -z "$VEHICLE" ] && {
-    VEHICLE=$(basename $PWD)
+    CDIR="$PWD"
+    rpath=$(which realpath)
+    [ -n "rpath" ] && {
+        CDIR=$(realpath $CDIR)
+    }
+    VEHICLE=$(basename $CDIR)
 }
 
 [ -z "$FRAME" -a "$VEHICLE" = "APMrover2" ] && {
@@ -188,90 +203,133 @@ set -x
 [ -z "$FRAME" -a "$VEHICLE" = "ArduPlane" ] && {
     FRAME="jsbsim"
 }
+[ -z "$FRAME" -a "$VEHICLE" = "ArduCopter" ] && {
+    FRAME="quad"
+}
+[ -z "$FRAME" -a "$VEHICLE" = "AntennaTracker" ] && {
+    FRAME="tracker"
+}
 
 EXTRA_PARM=""
-EXTRA_SIM=""
 
-[ "$SPEEDUP" != "1" ] && {
-    EXTRA_SIM="$EXTRA_SIM --speedup=$SPEEDUP"
+check_jsbsim_version()
+{
+    jsbsim_version=$(JSBSim --version)
+    if [[ $jsbsim_version != *"ArduPilot"* ]]
+    then
+        cat <<EOF
+=========================================================
+You need the latest ArduPilot version of JSBSim installed
+and in your \$PATH
+
+Please get it from git://github.com/tridge/jsbsim.git
+See 
+  http://dev.ardupilot.com/wiki/simulation-2/sitl-simulator-software-in-the-loop/setting-up-sitl-on-linux/ 
+for more details
+=========================================================
+EOF
+        exit 1
+    fi
 }
+
 
 # modify build target based on copter frame type
 case $FRAME in
     +|quad)
 	BUILD_TARGET="sitl"
-        EXTRA_SIM="$EXTRA_SIM --frame=quad"
+        MODEL="+"
 	;;
     X)
 	BUILD_TARGET="sitl"
         EXTRA_PARM="param set FRAME 1;"
-        EXTRA_SIM="$EXTRA_SIM --frame=X"
+        MODEL="X"
 	;;
-    octa)
+    octa*)
 	BUILD_TARGET="sitl-octa"
-        EXTRA_SIM="$EXTRA_SIM --frame=octa"
-	;;
-    octa-quad)
-	BUILD_TARGET="sitl-octa-quad"
-        EXTRA_SIM="$EXTRA_SIM --frame=octa-quad"
+        MODEL="$FRAME"
 	;;
     heli)
 	BUILD_TARGET="sitl-heli"
-        EXTRA_SIM="$EXTRA_SIM --frame=heli"
+        MODEL="heli"
 	;;
+    heli-dual)
+  BUILD_TARGET="sitl-heli-dual"
+        EXTRA_SIM="$EXTRA_SIM --frame=heli-dual"
+        MODEL="heli-dual"
+  ;;
+    heli-compound)
+  BUILD_TARGET="sitl-heli-compound"
+        EXTRA_SIM="$EXTRA_SIM --frame=heli-compound"
+        MODEL="heli-compound"
+  ;;
     IrisRos)
 	BUILD_TARGET="sitl"
-        EXTRA_SIM="$EXTRA_SIM --frame=IrisRos"
+	;;
+    Gazebo)
+	BUILD_TARGET="sitl"
+        EXTRA_SIM="$EXTRA_SIM --frame=Gazebo"
+        MODEL="$FRAME"
 	;;
     CRRCSim-heli)
 	BUILD_TARGET="sitl-heli"
-        EXTRA_SIM="$EXTRA_SIM --frame=CRRCSim-heli"
+        MODEL="$FRAME"
 	;;
-    CRRCSim|last_letter*|jsbsim*)
+    CRRCSim|last_letter*)
 	BUILD_TARGET="sitl"
-        EXTRA_SIM="$EXTRA_SIM --frame=CRRCSim"
+        MODEL="$FRAME"
 	;;
-    rover|rover-skid)
-        EXTRA_SIM="$EXTRA_SIM --frame=$FRAME"
+    jsbsim*)
+	BUILD_TARGET="sitl"
+        MODEL="$FRAME"
+        check_jsbsim_version
 	;;
-    obc)
-        BUILD_TARGET="sitl-obc"
-	;;
-    "")
-        ;;
     *)
-        echo "Unknown frame type $FRAME"
-        usage
-        exit 1
-        ;;
+        MODEL="$FRAME"
+	;;
 esac
 
 if [ $DEBUG_BUILD == 1 ]; then
     BUILD_TARGET="$BUILD_TARGET-debug"
 fi
 
-if [ $USE_MAVLINK_GIMBAL == 1 ]; then
-    echo "Using MAVLink gimbal"
-    EXTRA_SIM="$EXTRA_SIM --gimbal"
+if [ -n "$OVERRIDE_BUILD_TARGET" ]; then
+    BUILD_TARGET="$OVERRIDE_BUILD_TARGET"
 fi
 
-autotest=$(dirname $(readlink -e $0))
-if [ $NO_REBUILD == 0 ]; then
-pushd $autotest/../../$VEHICLE || {
-    echo "Failed to change to vehicle directory for $VEHICLE"
+autotest="../Tools/autotest"
+[ -d "$autotest" ] || {
+    # we are not running from one of the standard vehicle directories. Use 
+    # the location of the sim_vehicle.sh script to find the path
+    autotest=$(dirname $(readlink -e $0))
+}
+VEHICLEDIR="$autotest/../../$VEHICLE"
+[ -d "$VEHICLEDIR" ] || {
+    VEHICLEDIR=$(dirname $(readlink -e $VEHICLEDIR))
+}
+pushd $VEHICLEDIR || {
+    echo "Failed to change to vehicle directory for $VEHICLEDIR"
     usage
     exit 1
 }
+AUTOTEST=$autotest
+export AUTOTEST
 VEHICLEDIR=$(pwd)
+
+if [ $NO_REBUILD == 0 ]; then
 if [ $CLEAN_BUILD == 1 ]; then
+    echo "Building clean"
     make clean
 fi
+echo "Building $BUILD_TARGET"
 make $BUILD_TARGET -j$NUM_PROCS || {
     make clean
-    make $BUILD_TARGET -j$NUM_PROCS
+    make $BUILD_TARGET -j$NUM_PROCS || {
+	echo >&2 "$0: Build failed"
+	exit 1
+    }
 }
-popd
 fi
+popd
 
 # get the location information
 if [ -z $CUSTOM_LOCATION ]; then
@@ -301,17 +359,14 @@ if [ $START_ANTENNA_TRACKER == 1 ]; then
     if [ $CLEAN_BUILD == 1 ]; then
         make clean
     fi
-    make sitl -j$NUM_PROCS || {
+    make sitl-debug -j$NUM_PROCS || {
         make clean
-        make sitl -j$NUM_PROCS
+        make sitl-debug -j$NUM_PROCS
     }
     TRACKER_INSTANCE=1
-    TRACKIN_PORT="127.0.0.1:"$((5502+10*$TRACKER_INSTANCE))
-    TRACKOUT_PORT="127.0.0.1:"$((5501+10*$TRACKER_INSTANCE))
     TRACKER_UARTA="tcp:127.0.0.1:"$((5760+10*$TRACKER_INSTANCE))
-    cmd="nice /tmp/AntennaTracker.build/AntennaTracker.elf -I1"
+    cmd="nice /tmp/AntennaTracker.build/AntennaTracker.elf -I1 --model=tracker --home=$TRACKER_HOME"
     $autotest/run_in_terminal_window.sh "AntennaTracker" $cmd || exit 1
-    $autotest/run_in_terminal_window.sh "pysim(Tracker)" nice $autotest/pysim/sim_tracker.py --home=$TRACKER_HOME --simin=$TRACKIN_PORT --simout=$TRACKOUT_PORT $TRACKER_ARGS || exit 1
     popd
 fi
 
@@ -320,46 +375,27 @@ if [ $WIPE_EEPROM == 1 ]; then
     cmd="$cmd -w"
 fi
 
+cmd="$cmd --model $MODEL --speedup=$SPEEDUP"
+
 case $VEHICLE in
     ArduPlane)
-        [ "$REVERSE_THROTTLE" == 1 ] && {
-            EXTRA_SIM="$EXTRA_SIM --revthr"
-        }
-        jsbsim_version=$(JSBSim --version)
-        if [[ $jsbsim_version != *"ArduPilot"* ]]
-        then
-            cat <<EOF
-=========================================================
-You need the latest ArduPilot version of JSBSim installed
-and in your \$PATH
-
-Please get it from git://github.com/tridge/jsbsim.git
-See 
-  http://dev.ardupilot.com/wiki/simulation-2/sitl-simulator-software-in-the-loop/setting-up-sitl-on-linux/ 
-for more details
-=========================================================
-EOF
-            exit 1
-        fi
         PARMS="ArduPlane.parm"
-        RUNSIM=""
-        cmd="$cmd --model $FRAME --speedup=$SPEEDUP"
         ;;
     ArduCopter)
-        RUNSIM="nice $autotest/pysim/sim_wrapper.py --home=$SIMHOME --simin=$SIMIN_PORT --simout=$SIMOUT_PORT --fgout=$FG_PORT $EXTRA_SIM"
         PARMS="copter_params.parm"
         ;;
     APMrover2)
-        RUNSIM=""
-        cmd="$cmd --model $FRAME --speedup=$SPEEDUP"
         PARMS="Rover.parm"
         ;;
     *)
-        echo "Unknown vehicle simulation type $VEHICLE - please specify vehicle using -v VEHICLE_TYPE"
-        usage
-        exit 1
+        PARMS=""
         ;;
 esac
+
+if [ $USE_MAVLINK_GIMBAL == 1 ]; then
+    echo "Using MAVLink gimbal"
+    cmd="$cmd --gimbal"
+fi
 
 if [ $START_HIL == 0 ]; then
 if [ $USE_VALGRIND == 1 ]; then
@@ -369,6 +405,9 @@ elif [ $USE_GDB == 1 ]; then
     echo "Using gdb"
     tfile=$(mktemp)
     [ $USE_GDB_STOPPED == 0 ] && {
+        if [ -n "$BREAKPOINT" ]; then
+            echo "b $BREAKPOINT" >> $tfile
+        fi
         echo r >> $tfile
     }
     $autotest/run_in_terminal_window.sh "ardupilot (gdb)" gdb -x $tfile --args $cmd || exit 1
@@ -378,30 +417,6 @@ fi
 fi
 
 trap kill_tasks SIGINT
-
-echo "RUNSIM: $RUNSIM"
-
-if [ -n "$RUNSIM" -o "$EXTERNAL_SIM" == 1 ]; then
-    sleep 2
-    rm -f $tfile
-    if [ $EXTERNAL_SIM == 0 ]; then
-        $autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
-            echo "Failed to start simulator: $RUNSIM"
-            exit 1
-        }
-        sleep 2
-    else
-        echo "Using external ROS simulator"
-        RUNSIM="$autotest/ROS/runsim.py --simin=$SIMIN_PORT --simout=$SIMOUT_PORT --fgout=$FG_PORT $EXTRA_SIM"
-        $autotest/run_in_terminal_window.sh "ROS Simulator" $RUNSIM || {
-            echo "Failed to start simulator: $RUNSIM"
-            exit 1
-        }
-        sleep 2
-    fi
-else
-    echo "not running external simulator"
-fi
 
 # mavproxy.py --master tcp:127.0.0.1:5760 --sitl 127.0.0.1:5501 --out 127.0.0.1:14550 --out 127.0.0.1:14551 
 options=""
@@ -428,7 +443,12 @@ fi
 if [ $USE_MAVLINK_GIMBAL == 1 ]; then
     options="$options --load-module=gimbal"
 fi
-mavproxy.py $options --cmd="$extra_cmd" $*
+
+if [ -f /usr/bin/cygstart ]; then
+    cygstart -w "/cygdrive/c/Program Files (x86)/MAVProxy/mavproxy.exe" $options --cmd="$extra_cmd" $*
+else
+    mavproxy.py $options --cmd="$extra_cmd" $*
+fi
 if [ $START_HIL == 0 ]; then
 kill_tasks
 fi

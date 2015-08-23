@@ -1,7 +1,7 @@
 // -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 
 #include "AP_TECS.h"
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -887,7 +887,7 @@ void AP_TECS::update_pitch_throttle(int32_t hgt_dem_cm,
 	log_tuning.thr      = _throttle_dem;
 	log_tuning.ptch     = _pitch_dem;
 	log_tuning.dspd_dem = _TAS_rate_dem;
-	log_tuning.time_ms  = hal.scheduler->millis();
+	log_tuning.time_us  = hal.scheduler->micros64();
 }
 
 // log the contents of the log_tuning structure to dataflash

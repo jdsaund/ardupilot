@@ -18,10 +18,10 @@
     SITL.cpp - software in the loop state
 */
 
-#include <AP_Common.h>
-#include <AP_HAL.h>
-#include <GCS_MAVLink.h>
-#include <SITL.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_HAL/AP_HAL.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
+#include "SITL.h"
 
 extern const AP_HAL::HAL& hal;
 
@@ -38,7 +38,7 @@ const AP_Param::GroupInfo SITL::var_info[] PROGMEM = {
     AP_GROUPINFO("ENGINE_MUL", 8, SITL,  engine_mul,  1),
     AP_GROUPINFO("WIND_SPD",   9, SITL,  wind_speed,  0),
     AP_GROUPINFO("WIND_DIR",  10, SITL,  wind_direction,  180),
-    AP_GROUPINFO("WIND_TURB", 11, SITL,  wind_turbulance,  0.2f),
+    AP_GROUPINFO("WIND_TURB", 11, SITL,  wind_turbulance,  0),
     AP_GROUPINFO("GPS_TYPE",  12, SITL,  gps_type,  SITL::GPS_TYPE_UBLOX),
     AP_GROUPINFO("GPS_BYTELOSS",  13, SITL,  gps_byteloss,  0),
     AP_GROUPINFO("GPS_NUMSATS",   14, SITL,  gps_numsats,   10),
@@ -69,6 +69,8 @@ const AP_Param::GroupInfo SITL::var_info[] PROGMEM = {
     AP_GROUPINFO("MAG_DELAY",     39, SITL,  mag_delay, 0),
     AP_GROUPINFO("WIND_DELAY",    40, SITL,  wind_delay, 0),
     AP_GROUPINFO("MAG_OFS",       41, SITL,  mag_ofs, 0),
+    AP_GROUPINFO("ACC2_RND",      42, SITL,  accel2_noise, 0),
+    AP_GROUPINFO("ARSP_FAIL",     43, SITL,  aspd_fail, 0),
     AP_GROUPEND
 };
 
@@ -76,14 +78,7 @@ const AP_Param::GroupInfo SITL::var_info[] PROGMEM = {
 /* report SITL state via MAVLink */
 void SITL::simstate_send(mavlink_channel_t chan)
 {
-    double p, q, r;
     float yaw;
-
-    // we want the gyro values to be directly comparable to the
-    // raw_imu message, which is in body frame
-    convert_body_frame(state.rollDeg, state.pitchDeg,
-                       state.rollRate, state.pitchRate, state.yawRate,
-                       &p, &q, &r);
 
     // convert to same conventions as DCM
     yaw = state.yawDeg;
@@ -98,7 +93,9 @@ void SITL::simstate_send(mavlink_channel_t chan)
                               state.xAccel,
                               state.yAccel,
                               state.zAccel,
-                              p, q, r,
+                              radians(state.rollRate), 
+                              radians(state.pitchRate), 
+                              radians(state.yawRate), 
                               state.latitude*1.0e7,
                               state.longitude*1.0e7);
 }
@@ -106,14 +103,7 @@ void SITL::simstate_send(mavlink_channel_t chan)
 /* report SITL state to DataFlash */
 void SITL::Log_Write_SIMSTATE(DataFlash_Class &DataFlash)
 {
-    double p, q, r;
     float yaw;
-
-    // we want the gyro values to be directly comparable to the
-    // raw_imu message, which is in body frame
-    convert_body_frame(state.rollDeg, state.pitchDeg,
-                       state.rollRate, state.pitchRate, state.yawRate,
-                       &p, &q, &r);
 
     // convert to same conventions as DCM
     yaw = state.yawDeg;
@@ -123,7 +113,7 @@ void SITL::Log_Write_SIMSTATE(DataFlash_Class &DataFlash)
 
     struct log_AHRS pkt = {
         LOG_PACKET_HEADER_INIT(LOG_SIMSTATE_MSG),
-        time_ms : hal.scheduler->millis(),
+        time_us : hal.scheduler->micros64(),
         roll    : (int16_t)(state.rollDeg*100),
         pitch   : (int16_t)(state.pitchDeg*100),
         yaw     : (uint16_t)(wrap_360_cd(yaw*100)),
@@ -150,9 +140,9 @@ void SITL::convert_body_frame(double rollDeg, double pitchDeg,
     thetaDot = ToRad(pitchRate);
     psiDot = ToRad(yawRate);
 
-    *p = phiDot - psiDot*sinf(theta);
-    *q = cosf(phi)*thetaDot + sinf(phi)*psiDot*cosf(theta);
-    *r = cosf(phi)*psiDot*cosf(theta) - sinf(phi)*thetaDot;
+    *p = phiDot - psiDot*sin(theta);
+    *q = cos(phi)*thetaDot + sin(phi)*psiDot*cos(theta);
+    *r = cos(phi)*psiDot*cos(theta) - sin(phi)*thetaDot;
 }
 
 

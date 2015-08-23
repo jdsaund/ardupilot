@@ -67,9 +67,11 @@ void Plane::send_heartbeat(mavlink_channel_t chan)
         base_mode |= MAV_MODE_FLAG_MANUAL_INPUT_ENABLED;
     }
 
+#if HIL_SUPPORT
     if (g.hil_mode == 1) {
         base_mode |= MAV_MODE_FLAG_HIL_ENABLED;
     }
+#endif
 
     // we are armed if we are not initialising
     if (control_mode != INITIALISING && hal.util->get_soft_armed()) {
@@ -90,7 +92,7 @@ void Plane::send_heartbeat(mavlink_channel_t chan)
 
 void Plane::send_attitude(mavlink_channel_t chan)
 {
-    Vector3f omega = ahrs.get_gyro();
+    const Vector3f &omega = ahrs.get_gyro();
     mavlink_msg_attitude_send(
         chan,
         millis(),
@@ -238,9 +240,11 @@ void Plane::send_extended_status1(mavlink_channel_t chan)
     if (airspeed.healthy()) {
         control_sensors_health |= MAV_SYS_STATUS_SENSOR_DIFFERENTIAL_PRESSURE;
     }
+#if GEOFENCE_ENABLED
     if (geofence_breached()) {
         control_sensors_health &= ~MAV_SYS_STATUS_GEOFENCE;
     }
+#endif
 
     int16_t battery_current = -1;
     int8_t battery_remaining = -1;
@@ -362,6 +366,7 @@ void Plane::send_servo_out(mavlink_channel_t chan)
 
 void Plane::send_radio_out(mavlink_channel_t chan)
 {
+#if HIL_SUPPORT
     if (g.hil_mode==1 && !g.hil_servos) {
         mavlink_msg_servo_output_raw_send(
             chan,
@@ -377,6 +382,7 @@ void Plane::send_radio_out(mavlink_channel_t chan)
             RC_Channel::rc_channel(7)->radio_out);
         return;
     }
+#endif
     mavlink_msg_servo_output_raw_send(
         chan,
         micros(),
@@ -412,14 +418,16 @@ void Plane::send_vfr_hud(mavlink_channel_t chan)
 /*
   keep last HIL_STATE message to allow sending SIM_STATE
  */
+#if HIL_SUPPORT
 static mavlink_hil_state_t last_hil_state;
+#endif
 
 // report simulator state
 void Plane::send_simstate(mavlink_channel_t chan)
 {
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     sitl.simstate_send(chan);
-#else
+#elif HIL_SUPPORT
     if (g.hil_mode == 1) {
         mavlink_msg_simstate_send(chan,
                                   last_hil_state.roll,
@@ -454,6 +462,66 @@ void Plane::send_wind(mavlink_channel_t chan)
                                           // direction wind is coming from
         wind.length(),
         wind.z);
+}
+
+/*
+  send PID tuning message
+ */
+void Plane::send_pid_tuning(mavlink_channel_t chan)
+{
+    const Vector3f &gyro = ahrs.get_gyro();
+    if (g.gcs_pid_mask & 1) {
+        const DataFlash_Class::PID_Info &pid_info = rollController.get_pid_info();
+        mavlink_msg_pid_tuning_send(chan, PID_TUNING_ROLL, 
+                                    pid_info.desired,
+                                    degrees(gyro.x),
+                                    pid_info.FF,
+                                    pid_info.P,
+                                    pid_info.I,
+                                    pid_info.D);
+        if (!HAVE_PAYLOAD_SPACE(chan, PID_TUNING)) {
+            return;
+        }
+    }
+    if (g.gcs_pid_mask & 2) {
+        const DataFlash_Class::PID_Info &pid_info = pitchController.get_pid_info();
+        mavlink_msg_pid_tuning_send(chan, PID_TUNING_PITCH, 
+                                    pid_info.desired,
+                                    degrees(gyro.y),
+                                    pid_info.FF,
+                                    pid_info.P,
+                                    pid_info.I,
+                                    pid_info.D);
+        if (!HAVE_PAYLOAD_SPACE(chan, PID_TUNING)) {
+            return;
+        }
+    }
+    if (g.gcs_pid_mask & 4) {
+        const DataFlash_Class::PID_Info &pid_info = yawController.get_pid_info();
+        mavlink_msg_pid_tuning_send(chan, PID_TUNING_YAW,
+                                    pid_info.desired,
+                                    degrees(gyro.z),
+                                    pid_info.FF,
+                                    pid_info.P,
+                                    pid_info.I,
+                                    pid_info.D);
+        if (!HAVE_PAYLOAD_SPACE(chan, PID_TUNING)) {
+            return;
+        }
+    }
+    if (g.gcs_pid_mask & 8) {
+        const DataFlash_Class::PID_Info &pid_info = steerController.get_pid_info();
+        mavlink_msg_pid_tuning_send(chan, PID_TUNING_STEER, 
+                                    pid_info.desired,
+                                    degrees(gyro.z),
+                                    pid_info.FF,
+                                    pid_info.P,
+                                    pid_info.I,
+                                    pid_info.D);
+        if (!HAVE_PAYLOAD_SPACE(chan, PID_TUNING)) {
+            return;
+        }
+    }
 }
 
 void Plane::send_rangefinder(mavlink_channel_t chan)
@@ -500,15 +568,10 @@ bool Plane::telemetry_delayed(mavlink_channel_t chan)
     return true;
 }
 
-// check if a message will fit in the payload space available
-#define CHECK_PAYLOAD_SIZE(id) if (txspace < MAVLINK_NUM_NON_PAYLOAD_BYTES+MAVLINK_MSG_ID_ ## id ## _LEN) return false
-
 
 // try to send a message, return false if it won't fit in the serial tx buffer
 bool GCS_MAVLINK::try_send_message(enum ap_message id)
 {
-    uint16_t txspace = comm_get_txspace(chan);
-
     if (plane.telemetry_delayed(chan)) {
         return false;
     }
@@ -531,7 +594,7 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
     case MSG_EXTENDED_STATUS1:
         CHECK_PAYLOAD_SIZE(SYS_STATUS);
         plane.send_extended_status1(chan);
-        CHECK_PAYLOAD_SIZE(POWER_STATUS);
+        CHECK_PAYLOAD_SIZE2(POWER_STATUS);
         plane.gcs[chan-MAVLINK_COMM_0].send_power_status();
         break;
 
@@ -573,10 +636,12 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
         break;
 
     case MSG_SERVO_OUT:
+#if HIL_SUPPORT
         if (plane.g.hil_mode == 1) {
             CHECK_PAYLOAD_SIZE(RC_CHANNELS_SCALED);
             plane.send_servo_out(chan);
         }
+#endif
         break;
 
     case MSG_RADIO_IN:
@@ -644,7 +709,7 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
     case MSG_SIMSTATE:
         CHECK_PAYLOAD_SIZE(SIMSTATE);
         plane.send_simstate(chan);
-        CHECK_PAYLOAD_SIZE(AHRS2);
+        CHECK_PAYLOAD_SIZE2(AHRS2);
         plane.gcs[chan-MAVLINK_COMM_0].send_ahrs2(plane.ahrs);
         break;
 
@@ -703,12 +768,37 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
 #endif
         break;
 
+    case MSG_GIMBAL_REPORT:
+#if MOUNT == ENABLED
+        CHECK_PAYLOAD_SIZE(GIMBAL_REPORT);
+        plane.camera_mount.send_gimbal_report(chan);
+#endif
+        break;
+
     case MSG_RETRY_DEFERRED:
         break; // just here to prevent a warning
 
     case MSG_LIMITS_STATUS:
-    case MSG_GIMBAL_REPORT:
         // unused
+        break;
+
+    case MSG_PID_TUNING:
+        CHECK_PAYLOAD_SIZE(PID_TUNING);
+        plane.send_pid_tuning(chan);
+        break;
+
+    case MSG_VIBRATION:
+        CHECK_PAYLOAD_SIZE(VIBRATION);
+        send_vibration(plane.ins);
+        break;
+
+    case MSG_RPM:
+        // unused
+        break;
+
+    case MSG_MISSION_ITEM_REACHED:
+        CHECK_PAYLOAD_SIZE(MISSION_ITEM_REACHED);
+        mavlink_msg_mission_item_reached_send(chan, mission_item_reached_index);
         break;
     }
     return true;
@@ -857,6 +947,7 @@ GCS_MAVLINK::data_stream_send(void)
     if (plane.gcs_out_of_time) return;
 
     if (plane.in_mavlink_delay) {
+#if HIL_SUPPORT
         if (plane.g.hil_mode == 1) {
             // in HIL we need to keep sending servo values to ensure
             // the simulator doesn't pause, otherwise our sensor
@@ -868,6 +959,7 @@ GCS_MAVLINK::data_stream_send(void)
                 send_message(MSG_RADIO_OUT);
             }
         }
+#endif
         // don't send any other stream types while in the delay callback
         return;
     }
@@ -917,6 +1009,9 @@ GCS_MAVLINK::data_stream_send(void)
     if (stream_trigger(STREAM_EXTRA1)) {
         send_message(MSG_ATTITUDE);
         send_message(MSG_SIMSTATE);
+        if (plane.control_mode != MANUAL) {
+            send_message(MSG_PID_TUNING);
+        }
     }
 
     if (plane.gcs_out_of_time) return;
@@ -940,6 +1035,8 @@ GCS_MAVLINK::data_stream_send(void)
         send_message(MSG_MOUNT_STATUS);
         send_message(MSG_OPTICAL_FLOW);
         send_message(MSG_EKF_STATUS_REPORT);
+        send_message(MSG_GIMBAL_REPORT);
+        send_message(MSG_VIBRATION);
     }
 }
 
@@ -1002,6 +1099,15 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
         send_text_P(SEVERITY_LOW,PSTR("command received: "));
 
         switch(packet.command) {
+
+        case MAV_CMD_START_RX_PAIR:
+            // initiate bind procedure
+            if (!hal.rcin->rc_bind(packet.param1)) {
+                result = MAV_RESULT_FAILED;
+            } else {
+                result = MAV_RESULT_ACCEPTED;
+            }
+            break;
 
         case MAV_CMD_NAV_LOITER_UNLIM:
             plane.set_mode(LOITER);
@@ -1254,16 +1360,26 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
                     // don't allow the 0,0 position
                     break;
                 }
-                Location new_home_loc;
+                Location new_home_loc {};
                 new_home_loc.lat = (int32_t)(packet.param5 * 1.0e7f);
                 new_home_loc.lng = (int32_t)(packet.param6 * 1.0e7f);
                 new_home_loc.alt = (int32_t)(packet.param7 * 100.0f);
                 plane.ahrs.set_home(new_home_loc);
                 plane.home_is_set = HOME_SET_NOT_LOCKED;
+                plane.Log_Write_Home_And_Origin();
                 result = MAV_RESULT_ACCEPTED;
+                plane.gcs_send_text_fmt(PSTR("set home to %.6f %.6f at %um"),
+                                        (double)(new_home_loc.lat*1.0e-7f),
+                                        (double)(new_home_loc.lng*1.0e-7f),
+                                        (uint32_t)(new_home_loc.alt*0.01f));
             }
             break;
         }
+
+        case MAV_CMD_DO_AUTOTUNE_ENABLE:
+            // param1 : enable/disable
+            plane.autotune_enable(!is_zero(packet.param1));
+            break;
 
         default:
             break;
@@ -1281,7 +1397,7 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_SET_MODE:
     {
-        handle_set_mode(msg, AP_HAL_CLASSPROC(&plane, &Plane::mavlink_set_mode));
+        handle_set_mode(msg, FUNCTOR_BIND(&plane, &Plane::mavlink_set_mode, bool, uint8_t));
         break;
     }
 
@@ -1357,11 +1473,11 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
         break;
     }
 
-    // GCS has sent us a command from GCS, store to EEPROM
+    // GCS has sent us a mission item, store to EEPROM
     case MAVLINK_MSG_ID_MISSION_ITEM:
     {
         if (handle_mission_item(msg, plane.mission)) {
-            plane.Log_Write_EntireMission();
+            plane.DataFlash.Log_Write_EntireMission(plane.mission);
         }
         break;
     }
@@ -1454,6 +1570,14 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
         break;
     }
 
+    case MAVLINK_MSG_ID_GIMBAL_REPORT:
+    {
+#if MOUNT == ENABLED
+        handle_gimbal_report(plane.camera_mount, msg);
+#endif
+        break;
+    }
+
     case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE:
     {
         // allow override of RC channel values for HIL
@@ -1494,6 +1618,7 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_HIL_STATE:
     {
+#if HIL_SUPPORT
         if (plane.g.hil_mode != 1) {
             break;
         }
@@ -1544,6 +1669,7 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
              wrap_PI(fabsf(packet.yaw - plane.ahrs.yaw)) > ToRad(plane.g.hil_err_limit))) {
             plane.ahrs.reset_attitude(packet.roll, packet.pitch, packet.yaw);
         }
+#endif
         break;
     }
 
@@ -1670,6 +1796,19 @@ void Plane::gcs_send_message(enum ap_message id)
 }
 
 /*
+ *  send a mission item reached message and load the index before the send attempt in case it may get delayed
+ */
+void Plane::gcs_send_mission_item_reached_message(uint16_t mission_index)
+{
+    for (uint8_t i=0; i<num_gcs; i++) {
+        if (gcs[i].initialised) {
+            gcs[i].mission_item_reached_index = mission_index;
+            gcs[i].send_message(MSG_MISSION_ITEM_REACHED);
+        }
+    }
+}
+
+/*
  *  send data streams in the given rate range on both links
  */
 void Plane::gcs_data_stream_send(void)
@@ -1689,7 +1828,7 @@ void Plane::gcs_update(void)
     for (uint8_t i=0; i<num_gcs; i++) {
         if (gcs[i].initialised) {
 #if CLI_ENABLED == ENABLED
-            gcs[i].update(g.cli_enabled==1?AP_HAL_MEMBERPROC(&Plane::run_cli):NULL);
+            gcs[i].update(g.cli_enabled == 1 ? FUNCTOR_BIND_MEMBER(&Plane::run_cli, void, AP_HAL::UARTDriver *):NULL);
 #else
             gcs[i].update(NULL);
 #endif

@@ -20,7 +20,7 @@ static const struct Menu::command log_menu_commands[] PROGMEM = {
 };
 
 // A Macro to create the Menu
-MENU2(log_menu, "Log", log_menu_commands, MENU_FUNC(print_log_menu));
+MENU2(log_menu, "Log", log_menu_commands, FUNCTOR_BIND(&rover, &Rover::print_log_menu, bool));
 
 bool Rover::print_log_menu(void)
 {
@@ -160,7 +160,7 @@ void Rover::do_erase_logs(void)
 
 struct PACKED log_Performance {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     uint32_t loop_time;
     uint16_t main_loop_count;
     uint32_t g_dt_max;
@@ -176,7 +176,7 @@ void Rover::Log_Write_Performance()
 {
     struct log_Performance pkt = {
         LOG_PACKET_HEADER_INIT(LOG_PERFORMANCE_MSG),
-        time_ms         : millis(),
+        time_us         : hal.scheduler->micros64(),
         loop_time       : millis()- perf_mon_timer,
         main_loop_count : mainLoop_count,
         g_dt_max        : G_Dt_max,
@@ -189,17 +189,9 @@ void Rover::Log_Write_Performance()
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
-// Write a mission command. Total length : 36 bytes
-void Rover::Log_Write_Cmd(const AP_Mission::Mission_Command &cmd)
-{
-    mavlink_mission_item_t mav_cmd = {};
-    AP_Mission::mission_cmd_to_mavlink(cmd,mav_cmd);
-    DataFlash.Log_Write_MavCmd(mission.num_commands(),mav_cmd);
-}
-
 struct PACKED log_Steering {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     float demanded_accel;
     float achieved_accel;
 };
@@ -209,7 +201,7 @@ void Rover::Log_Write_Steering()
 {
     struct log_Steering pkt = {
         LOG_PACKET_HEADER_INIT(LOG_STEERING_MSG),
-        time_ms        : hal.scheduler->millis(),
+        time_us        : hal.scheduler->micros64(),
         demanded_accel : lateral_acceleration,
         achieved_accel : gps.ground_speed() * ins.get_gyro().z,
     };
@@ -218,7 +210,7 @@ void Rover::Log_Write_Steering()
 
 struct PACKED log_Startup {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     uint8_t startup_type;
     uint16_t command_total;
 };
@@ -227,31 +219,21 @@ void Rover::Log_Write_Startup(uint8_t type)
 {
     struct log_Startup pkt = {
         LOG_PACKET_HEADER_INIT(LOG_STARTUP_MSG),
-        time_ms         : millis(),
+        time_us         : hal.scheduler->micros64(),
         startup_type    : type,
         command_total   : mission.num_commands()
     };
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 
     // write all commands to the dataflash as well
-    Log_Write_EntireMission();
-}
-
-void Rover::Log_Write_EntireMission()
-{
-    DataFlash.Log_Write_Message_P(PSTR("New mission"));
-
-    AP_Mission::Mission_Command cmd;
-    for (uint16_t i = 0; i < mission.num_commands(); i++) {
-        if (mission.read_cmd_from_storage(i,cmd)) {
-            Log_Write_Cmd(cmd);
-        }
+    if (should_log(MASK_LOG_CMD)) {
+        DataFlash.Log_Write_EntireMission(mission);
     }
 }
 
 struct PACKED log_Control_Tuning {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     int16_t steer_out;
     int16_t roll;
     int16_t pitch;
@@ -265,7 +247,7 @@ void Rover::Log_Write_Control_Tuning()
     Vector3f accel = ins.get_accel();
     struct log_Control_Tuning pkt = {
         LOG_PACKET_HEADER_INIT(LOG_CTUN_MSG),
-        time_ms         : millis(),
+        time_us         : hal.scheduler->micros64(),
         steer_out       : (int16_t)channel_steer->servo_out,
         roll            : (int16_t)ahrs.roll_sensor,
         pitch           : (int16_t)ahrs.pitch_sensor,
@@ -277,7 +259,7 @@ void Rover::Log_Write_Control_Tuning()
 
 struct PACKED log_Nav_Tuning {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     uint16_t yaw;
     float    wp_distance;
     uint16_t target_bearing_cd;
@@ -290,7 +272,7 @@ void Rover::Log_Write_Nav_Tuning()
 {
     struct log_Nav_Tuning pkt = {
         LOG_PACKET_HEADER_INIT(LOG_NTUN_MSG),
-        time_ms             : millis(),
+        time_us             : hal.scheduler->micros64(),
         yaw                 : (uint16_t)ahrs.yaw_sensor,
         wp_distance         : wp_distance,
         target_bearing_cd   : (uint16_t)nav_controller->target_bearing_cd(),
@@ -316,11 +298,16 @@ void Rover::Log_Write_Attitude()
     DataFlash.Log_Write_AHRS2(ahrs);
 #endif
     DataFlash.Log_Write_POS(ahrs);
+
+#if HAL_CPU_CLASS > HAL_CPU_CLASS_16
+    DataFlash.Log_Write_PID(LOG_PIDY_MSG, steerController.get_pid_info());
+#endif
+
 }
 
 struct PACKED log_Sonar {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     float    lateral_accel;
     uint16_t sonar1_distance;
     uint16_t sonar2_distance;
@@ -340,7 +327,7 @@ void Rover::Log_Write_Sonar()
     }
     struct log_Sonar pkt = {
         LOG_PACKET_HEADER_INIT(LOG_SONAR_MSG),
-        time_ms         : millis(),
+        time_us         : hal.scheduler->micros64(),
         lateral_accel   : lateral_acceleration,
         sonar1_distance : (uint16_t)sonar.distance_cm(0),
         sonar2_distance : (uint16_t)sonar.distance_cm(1),
@@ -372,25 +359,42 @@ void Rover::Log_Write_Baro(void)
     DataFlash.Log_Write_Baro(barometer);
 }
 
+// log ahrs home and EKF origin to dataflash
+void Rover::Log_Write_Home_And_Origin()
+{
+#if AP_AHRS_NAVEKF_AVAILABLE
+    // log ekf origin if set
+    Location ekf_orig;
+    if (ahrs.get_NavEKF_const().getOriginLLH(ekf_orig)) {
+        DataFlash.Log_Write_Origin(LogOriginType::ekf_origin, ekf_orig);
+    }
+#endif
+
+    // log ahrs home if set
+    if (home_is_set) {
+        DataFlash.Log_Write_Origin(LogOriginType::ahrs_home, ahrs.get_home());
+    }
+}
+
 const LogStructure Rover::log_structure[] PROGMEM = {
     LOG_COMMON_STRUCTURES,
     { LOG_PERFORMANCE_MSG, sizeof(log_Performance), 
-      "PM",  "IIHIhhhBH", "TimeMS,LTime,MLC,gDt,GDx,GDy,GDz,I2CErr,INSErr" },
+      "PM",  "QIHIhhhBH", "TimeUS,LTime,MLC,gDt,GDx,GDy,GDz,I2CErr,INSErr" },
     { LOG_STARTUP_MSG, sizeof(log_Startup),         
-      "STRT", "IBH",        "TimeMS,SType,CTot" },
+      "STRT", "QBH",        "TimeUS,SType,CTot" },
     { LOG_CTUN_MSG, sizeof(log_Control_Tuning),     
-      "CTUN", "Ihcchf",     "TimeMS,Steer,Roll,Pitch,ThrOut,AccY" },
+      "CTUN", "Qhcchf",     "TimeUS,Steer,Roll,Pitch,ThrOut,AccY" },
     { LOG_NTUN_MSG, sizeof(log_Nav_Tuning),         
-      "NTUN", "IHfHHb",     "TimeMS,Yaw,WpDist,TargBrg,NavBrg,Thr" },
+      "NTUN", "QHfHHb",     "TimeUS,Yaw,WpDist,TargBrg,NavBrg,Thr" },
     { LOG_SONAR_MSG, sizeof(log_Sonar),             
-      "SONR", "IfHHHbHCb",  "TimeMS,LatAcc,S1Dist,S2Dist,DCnt,TAng,TTim,Spd,Thr" },
+      "SONR", "QfHHHbHCb",  "TimeUS,LatAcc,S1Dist,S2Dist,DCnt,TAng,TTim,Spd,Thr" },
     { LOG_STEERING_MSG, sizeof(log_Steering),             
-      "STER", "Iff",   "TimeMS,Demanded,Achieved" },
+      "STER", "Qff",   "TimeUS,Demanded,Achieved" },
 };
 
 void Rover::log_init(void)
 {
-	DataFlash.Init(log_structure, sizeof(log_structure)/sizeof(log_structure[0]));
+	DataFlash.Init(log_structure, ARRAY_SIZE(log_structure));
     if (!DataFlash.CardInserted()) {
         gcs_send_text_P(SEVERITY_LOW, PSTR("No dataflash card inserted"));
         g.log_bitmask.set(0);
@@ -413,8 +417,8 @@ void Rover::Log_Read(uint16_t log_num, uint16_t start_page, uint16_t end_page)
 
     cliSerial->println_P(PSTR(HAL_BOARD_NAME));
 
-	DataFlash.LogReadProcess(log_num, start_page, end_page, 
-                             AP_HAL_MEMBERPROC(&Rover::print_mode),
+	DataFlash.LogReadProcess(log_num, start_page, end_page,
+                             FUNCTOR_BIND_MEMBER(&Rover::print_mode, void, AP_HAL::BetterStream *, uint8_t),
                              cliSerial);
 }
 #endif // CLI_ENABLED
@@ -424,29 +428,17 @@ void Rover::start_logging()
 {
     in_mavlink_delay = true;
     DataFlash.StartNewLog();
+    DataFlash.Log_Write_SysInfo(PSTR(FIRMWARE_STRING));
     in_mavlink_delay = false;
-    DataFlash.Log_Write_Message_P(PSTR(FIRMWARE_STRING));
-
-#if defined(PX4_GIT_VERSION) && defined(NUTTX_GIT_VERSION)
-    DataFlash.Log_Write_Message_P(PSTR("PX4: " PX4_GIT_VERSION " NuttX: " NUTTX_GIT_VERSION));
-#endif
-
-    // write system identifier as well if available
-    char sysid[40];
-    if (hal.util->get_system_id(sysid)) {
-        DataFlash.Log_Write_Message(sysid);
-    }
 }
 
 #else // LOGGING_ENABLED
 
 // dummy functions
 void Rover::Log_Write_Startup(uint8_t type) {}
-void Rover::Log_Write_EntireMission() {}
 void Rover::Log_Write_Current() {}
 void Rover::Log_Write_Nav_Tuning() {}
 void Rover::Log_Write_Performance() {}
-void Rover::Log_Write_Cmd(const AP_Mission::Mission_Command &cmd) {}
 int8_t Rover::process_logs(uint8_t argc, const Menu::arg *argv) { return 0; }
 void Rover::Log_Write_Control_Tuning() {}
 void Rover::Log_Write_Sonar() {}

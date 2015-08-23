@@ -24,8 +24,8 @@
  */
 
 // AVR LibC Includes
-#include <AP_Math.h>
-#include <AP_HAL.h>
+#include <AP_Math/AP_Math.h>
+#include <AP_HAL/AP_HAL.h>
 
 #include "AP_Compass_HMC5843.h"
 
@@ -116,7 +116,6 @@ bool AP_Compass_HMC5843::read_raw()
     if (hal.i2c->readRegisters(COMPASS_ADDRESS, 0x03, 6, buff) != 0) {
         hal.i2c->setHighSpeed(false);
         _retry_time = hal.scheduler->millis() + 1000;
-        _i2c_sem->give();
         return false;
     }
 
@@ -348,6 +347,7 @@ AP_Compass_HMC5843::init()
     if (success) {
         // register the compass instance in the frontend
         _compass_instance = register_compass();
+        set_dev_id(_compass_instance, _product_id);
     }
 
     return success;

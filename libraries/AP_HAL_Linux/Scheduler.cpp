@@ -1,4 +1,4 @@
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_LINUX
 
@@ -26,6 +26,21 @@ extern const AP_HAL::HAL& hal;
 #define APM_LINUX_MAIN_PRIORITY         12
 #define APM_LINUX_TONEALARM_PRIORITY    11
 #define APM_LINUX_IO_PRIORITY           10
+
+#if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_NAVIO
+#define APM_LINUX_UART_PERIOD           10000
+#define APM_LINUX_RCIN_PERIOD           500  
+#define APM_LINUX_TONEALARM_PERIOD      10000
+#define APM_LINUX_IO_PERIOD             20000
+#else
+#define APM_LINUX_UART_PERIOD           10000
+#define APM_LINUX_RCIN_PERIOD           10000
+#define APM_LINUX_TONEALARM_PERIOD      10000
+#define APM_LINUX_IO_PERIOD             20000
+#endif // CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_NAVIO
+
+
+
 
 LinuxScheduler::LinuxScheduler()
 {}
@@ -250,7 +265,7 @@ void LinuxScheduler::_run_timers(bool called_from_timer_thread)
     }
     // now call the timer based drivers
     for (int i = 0; i < _num_timer_procs; i++) {
-        if (_timer_proc[i] != NULL) {
+        if (_timer_proc[i]) {
             _timer_proc[i]();
         }
     }
@@ -299,7 +314,7 @@ void LinuxScheduler::_run_io(void)
 
     // now call the IO based drivers
     for (int i = 0; i < _num_io_procs; i++) {
-        if (_io_proc[i] != NULL) {
+        if (_io_proc[i]) {
             _io_proc[i]();
         }
     }
@@ -315,8 +330,7 @@ void *LinuxScheduler::_rcin_thread(void *arg)
         poll(NULL, 0, 1);
     }
     while (true) {
-        sched->_microsleep(10000);
-
+        sched->_microsleep(APM_LINUX_RCIN_PERIOD);
         ((LinuxRCInput *)hal.rcin)->_timer_tick();
     }
     return NULL;
@@ -330,7 +344,7 @@ void *LinuxScheduler::_uart_thread(void* arg)
         poll(NULL, 0, 1);
     }
     while (true) {
-        sched->_microsleep(10000);
+        sched->_microsleep(APM_LINUX_UART_PERIOD);
 
         // process any pending serial bytes
         ((LinuxUARTDriver *)hal.uartA)->_timer_tick();
@@ -349,7 +363,7 @@ void *LinuxScheduler::_tonealarm_thread(void* arg)
         poll(NULL, 0, 1);
     }
     while (true) {
-        sched->_microsleep(10000);
+        sched->_microsleep(APM_LINUX_TONEALARM_PERIOD);
 
         // process tone command
         ((LinuxUtil *)hal.util)->_toneAlarm_timer_tick();
@@ -365,12 +379,12 @@ void *LinuxScheduler::_io_thread(void* arg)
         poll(NULL, 0, 1);
     }
     while (true) {
-        sched->_microsleep(20000);
+        sched->_microsleep(APM_LINUX_IO_PERIOD);
 
         // process any pending storage writes
         ((LinuxStorage *)hal.storage)->_timer_tick();
 
-        // run registered IO processes
+        // run registered IO procepsses
         sched->_run_io();
     }
     return NULL;
@@ -380,6 +394,7 @@ void LinuxScheduler::panic(const prog_char_t *errormsg)
 {
     write(1, errormsg, strlen(errormsg));
     write(1, "\n", 1);
+    hal.rcin->deinit();
     hal.scheduler->delay_microseconds(10000);
     exit(1);
 }

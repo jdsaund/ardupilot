@@ -20,13 +20,14 @@
 #include "AP_RangeFinder_MaxsonarI2CXL.h"
 #include "AP_RangeFinder_PX4.h"
 #include "AP_RangeFinder_PX4_PWM.h"
+#include "AP_RangeFinder_BBB_PRU.h"
 
 // table of user settable parameters
 const AP_Param::GroupInfo RangeFinder::var_info[] PROGMEM = {
     // @Param: _TYPE
     // @DisplayName: Rangefinder type
     // @Description: What type of rangefinder device that is connected
-    // @Values: 0:None,1:Analog,2:APM2-MaxbotixI2C,3:APM2-PulsedLightI2C,4:PX4-I2C,5:PX4-PWM
+    // @Values: 0:None,1:Analog,2:APM2-MaxbotixI2C,3:APM2-PulsedLightI2C,4:PX4-I2C,5:PX4-PWM,6:BBB-PRU
     AP_GROUPINFO("_TYPE",    0, RangeFinder, _type[0], 0),
 
     // @Param: _PIN
@@ -110,7 +111,7 @@ const AP_Param::GroupInfo RangeFinder::var_info[] PROGMEM = {
     // @Param: 2_TYPE
     // @DisplayName: Second Rangefinder type
     // @Description: What type of rangefinder device that is connected
-    // @Values: 0:None,1:Analog,2:APM2-MaxbotixI2C,3:APM2-PulsedLightI2C,4:PX4-I2C,5:PX4-PWM
+    // @Values: 0:None,1:Analog,2:APM2-MaxbotixI2C,3:APM2-PulsedLightI2C,4:PX4-I2C,5:PX4-PWM,6:BBB-PRU
     AP_GROUPINFO("2_TYPE",    12, RangeFinder, _type[1], 0),
 
     // @Param: 2_PIN
@@ -184,6 +185,18 @@ const AP_Param::GroupInfo RangeFinder::var_info[] PROGMEM = {
 
     AP_GROUPEND
 };
+
+RangeFinder::RangeFinder(void) :
+    primary_instance(0),
+    num_instances(0),
+    estimated_terrain_height(0)
+{
+    AP_Param::setup_object_defaults(this, var_info);
+
+    // init state and drivers
+    memset(state,0,sizeof(state));
+    memset(drivers,0,sizeof(drivers));
+}
 
 /*
   initialise the RangeFinder class. We do detection of attached range
@@ -284,6 +297,15 @@ void RangeFinder::detect_instance(uint8_t instance)
         }
     }
 #endif
+#if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BBBMINI
+    if (type == RangeFinder_TYPE_BBB_PRU) {
+        if (AP_RangeFinder_BBB_PRU::detect(*this, instance)) {
+            state[instance].instance = instance;
+            drivers[instance] = new AP_RangeFinder_BBB_PRU(*this, instance, state[instance]);
+            return;
+        }
+    }
+#endif
     if (type == RangeFinder_TYPE_ANALOG) {
         // note that analog must be the last to be checked, as it will
         // always come back as present if the pin is valid
@@ -299,7 +321,7 @@ void RangeFinder::detect_instance(uint8_t instance)
 RangeFinder::RangeFinder_Status RangeFinder::status(uint8_t instance) const
 {
     // sanity check instance
-    if (instance > RANGEFINDER_MAX_INSTANCES) {
+    if (instance >= RANGEFINDER_MAX_INSTANCES) {
         return RangeFinder_NotConnected;
     }
 
@@ -314,7 +336,7 @@ RangeFinder::RangeFinder_Status RangeFinder::status(uint8_t instance) const
 bool RangeFinder::has_data(uint8_t instance) const
 {
     // sanity check instance
-    if (instance > RANGEFINDER_MAX_INSTANCES) {
+    if (instance >= RANGEFINDER_MAX_INSTANCES) {
         return RangeFinder_NotConnected;
     }
     return ((state[instance].status != RangeFinder_NotConnected) && (state[instance].status != RangeFinder_NoData));

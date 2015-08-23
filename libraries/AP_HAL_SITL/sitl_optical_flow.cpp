@@ -6,8 +6,8 @@
   Andrew Tridgell November 2011
  */
 
-#include <AP_HAL.h>
-#include <AP_Math.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Math/AP_Math.h>
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 
@@ -33,7 +33,6 @@ static OpticalFlow::OpticalFlow_state optflow_data[MAX_OPTFLOW_DELAY];
  */
 void SITL_State::_update_flow(void)
 {
-    double p, q, r;
     Vector3f gyro;
     static uint32_t last_flow_ms;
 
@@ -49,14 +48,9 @@ void SITL_State::_update_flow(void)
     }
     last_flow_ms = now;
 
-    // convert roll rates to body frame
-    SITL::convert_body_frame(_sitl->state.rollDeg,
-                             _sitl->state.pitchDeg,
-                             _sitl->state.rollRate,
-                             _sitl->state.pitchRate,
-                             _sitl->state.yawRate,
-                             &p, &q, &r);
-    gyro(p, q, r);
+    gyro(radians(_sitl->state.rollRate), 
+         radians(_sitl->state.pitchRate), 
+         radians(_sitl->state.yawRate));
 
     OpticalFlow::OpticalFlow_state state;
 
@@ -77,7 +71,7 @@ void SITL_State::_update_flow(void)
 
     // estimate range to centre of image
     float range;
-    if (rotmat.c.z > 0.05f) {
+    if (rotmat.c.z > 0.05f && height_agl() > 0) {
         range = height_agl() / rotmat.c.z;
     } else {
         range = 1e38f;

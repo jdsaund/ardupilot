@@ -3,10 +3,10 @@
 #ifndef __AP_ARMING_H__
 #define __AP_ARMING_H__ 
 
-#include <AP_AHRS.h>
-#include <AP_HAL.h>
-#include <AP_Param.h>
-#include <GCS_MAVLink.h>
+#include <AP_AHRS/AP_AHRS.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Param/AP_Param.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
 
 class AP_Arming {
 public:
@@ -37,8 +37,14 @@ public:
         YES_ZERO_PWM = 2
     };
 
-    //for the hacky funciton pointer to gcs_send_text_p
-    typedef DELEGATE_FUNCTION2(void, gcs_severity, const prog_char_t*) gcs_send_t_p;
+    enum ArmingRudder {
+        ARMING_RUDDER_DISABLED  = 0,
+        ARMING_RUDDER_ARMONLY   = 1,
+        ARMING_RUDDER_ARMDISARM = 2
+    };
+
+    // for the hacky function pointer to gcs_send_text_p
+    FUNCTOR_TYPEDEF(gcs_send_t_p, void, gcs_severity, const prog_char_t *);
 
     AP_Arming(const AP_AHRS &ahrs_ref, const AP_Baro &baro, Compass &compass,
               const enum HomeState &home_set, gcs_send_t_p);
@@ -47,10 +53,14 @@ public:
     bool arm(uint8_t method);
     bool disarm();
     bool is_armed();
-    bool rudder_arming_enabled();
+    ArmingRudder rudder_arming() const { return (ArmingRudder)rudder_arming_value.get(); }
     uint16_t get_enabled_checks();
 
-    bool pre_arm_checks(bool report);
+    /*
+      pre_arm_checks() is virtual so it can be modified
+      in a vehicle specific subclass
+    */
+    virtual bool pre_arm_checks(bool report);
     void set_skip_gyro_cal(bool set) { skip_gyro_cal = set; }
 
     void set_logging_available(bool set) { logging_available = set; }
@@ -58,14 +68,14 @@ public:
     //for params
     static const struct AP_Param::GroupInfo        var_info[];
 
-private:
+protected:
     bool                                                armed:1;
     bool                                                logging_available:1;
     bool                                                skip_gyro_cal:1;
 
     //Parameters
     AP_Int8                                           require;
-    AP_Int8                                disable_rudder_arm;   
+    AP_Int8                               rudder_arming_value;
         //bitmask for which checks are required
     AP_Int16                                checks_to_perform;
 

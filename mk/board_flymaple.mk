@@ -39,7 +39,7 @@ WARNFLAGS      +=   -Wwrite-strings -Wformat=2
 WARNFLAGSCXX    =   -Wno-reorder
 DEPFLAGS        =   -MD -MT $@
 
-CXXOPTS         =   -ffunction-sections -fdata-sections -fno-exceptions -fsigned-char 
+CXXOPTS         =   -std=gnu++11 -ffunction-sections -fdata-sections -fno-exceptions -fsigned-char 
 COPTS           =   -ffunction-sections -fdata-sections -fsigned-char
 
 ASOPTS          =   -x assembler-with-cpp 
@@ -175,41 +175,7 @@ $(SKETCHEEP):	$(SKETCHELF)
 	$(RULEHDR)
 	$(v)$(OBJCOPY) -O ihex -j.eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $< $@
 
-#
-# Build sketch objects
-#
-SKETCH_INCLUDES	=	$(SKETCHLIBINCLUDES) $(ARDUINOLIBINCLUDES) $(COREINCLUDES)
+SKETCH_INCLUDES        =       $(SKETCHLIBINCLUDES) $(ARDUINOLIBINCLUDES) $(COREINCLUDES)
+SLIB_INCLUDES  =       -I$(dir $<)/utility $(SKETCHLIBINCLUDES) $(ARDUINOLIBINCLUDES) $(COREINCLUDES)
 
-$(BUILDROOT)/%.o: $(BUILDROOT)/%.cpp
-	$(RULEHDR)
-	$(v)$(CXX) $(CXXFLAGS) -c -o $@ $< -I$(SRCROOT) $(SKETCH_INCLUDES)
-
-$(BUILDROOT)/%.o: $(SRCROOT)/%.cpp
-	$(RULEHDR)
-	$(v)$(CXX) $(CXXFLAGS) -c -o $@ $< $(SKETCH_INCLUDES)
-
-$(BUILDROOT)/%.o: $(SRCROOT)/%.c
-	$(RULEHDR)
-	$(v)$(CC) $(CFLAGS) -c -o $@ $< $(SKETCH_INCLUDES)
-
-$(BUILDROOT)/%.o: $(SRCROOT)/%.S
-	$(RULEHDR)
-	$(v)$(AS) $(ASFLAGS) -c -o $@ $< $(SKETCH_INCLUDES)
-
-#
-# Build library objects from sources in the sketchbook
-#
-SLIB_INCLUDES	=	-I$(dir $<)/utility $(SKETCHLIBINCLUDES) $(ARDUINOLIBINCLUDES) $(COREINCLUDES)
-
-$(BUILDROOT)/libraries/%.o: $(SKETCHBOOK)/libraries/%.cpp
-	$(RULEHDR)
-	$(v)$(CXX) $(CXXFLAGS) -c -o $@ $< $(SLIB_INCLUDES)
-
-$(BUILDROOT)/libraries/%.o: $(SKETCHBOOK)/libraries/%.c
-	$(RULEHDR)
-	$(v)$(CC) $(CFLAGS) -c -o $@ $< $(SLIB_INCLUDES)
-
-$(BUILDROOT)/libraries/%.o: $(SKETCHBOOK)/libraries/%.S
-	$(RULEHDR)
-	$(v)$(AS) $(ASFLAGS) -c -o $@ $< $(SLIB_INCLUDES)
-
+include $(MK_DIR)/build_rules.mk

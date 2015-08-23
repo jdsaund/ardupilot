@@ -30,20 +30,6 @@ bool Plane::verify_land()
     // use rangefinder to correct if possible
     height -= rangefinder_correction();
 
-    // calculate the sink rate.
-    float sink_rate;
-    Vector3f vel;
-    if (ahrs.get_velocity_NED(vel)) {
-        sink_rate = vel.z;
-    } else if (gps.status() >= AP_GPS::GPS_OK_FIX_3D && gps.have_vertical_velocity()) {
-        sink_rate = gps.velocity().z;
-    } else {
-        sink_rate = -barometer.get_climb_rate();        
-    }
-
-    // low pass the sink rate to take some of the noise out
-    auto_state.land_sink_rate = 0.8f * auto_state.land_sink_rate + 0.2f*sink_rate;
-    
     /* Set land_complete (which starts the flare) under 3 conditions:
        1) we are within LAND_FLARE_ALT meters of the landing altitude
        2) we are within LAND_FLARE_SEC of the landing point vertically
@@ -58,16 +44,17 @@ bool Plane::verify_land()
     bool rangefinder_in_range = false;
 #endif
     if (height <= g.land_flare_alt ||
-        (aparm.land_flare_sec > 0 && height <= auto_state.land_sink_rate * aparm.land_flare_sec) ||
+        (aparm.land_flare_sec > 0 && height <= auto_state.sink_rate * aparm.land_flare_sec) ||
         (!rangefinder_in_range && location_passed_point(current_loc, prev_WP_loc, next_WP_loc)) ||
-        (fabsf(auto_state.land_sink_rate) < 0.2f && !is_flying())) {
+        (fabsf(auto_state.sink_rate) < 0.2f && !is_flying())) {
 
         if (!auto_state.land_complete) {
+            auto_state.post_landing_stats = true;
             if (!is_flying() && (millis()-auto_state.last_flying_ms) > 3000) {
                 gcs_send_text_fmt(PSTR("Flare crash detected: speed=%.1f"), (double)gps.ground_speed());
             } else {
                 gcs_send_text_fmt(PSTR("Flare %.1fm sink=%.2f speed=%.1f"), 
-                        (double)height, (double)auto_state.land_sink_rate, (double)gps.ground_speed());
+                        (double)height, (double)auto_state.sink_rate, (double)gps.ground_speed());
             }
         }
         auto_state.land_complete = true;
@@ -93,6 +80,13 @@ bool Plane::verify_land()
                     land_bearing_cd*0.01f, 
                     get_distance(prev_WP_loc, current_loc) + 200);
     nav_controller->update_waypoint(prev_WP_loc, land_WP_loc);
+
+    // once landed and stationary, post some statistics
+    // this is done before disarm_if_autoland_complete() so that it happens on the next loop after the disarm
+    if (auto_state.post_landing_stats && !arming.is_armed()) {
+        auto_state.post_landing_stats = false;
+        gcs_send_text_fmt(PSTR("Distance from LAND point=%.2fm"), get_distance(current_loc, next_WP_loc));
+    }
 
     // check if we should auto-disarm after a confirmed landing
     disarm_if_autoland_complete();
@@ -144,6 +138,12 @@ void Plane::setup_landing_glide_slope(void)
         const float land_projection = 500;        
         int32_t land_bearing_cd = get_bearing_cd(prev_WP_loc, next_WP_loc);
         float total_distance = get_distance(prev_WP_loc, next_WP_loc);
+
+        // If someone mistakenly puts all 0's in their LAND command then total_distance
+        // will be calculated as 0 and cause a divide by 0 error below.  Lets avoid that.
+        if (total_distance < 1) {
+            total_distance = 1;
+        }
 
         // height we need to sink for this WP
         float sink_height = (prev_WP_loc.alt - next_WP_loc.alt)*0.01f;

@@ -7,16 +7,21 @@
 #ifndef __GCS_H
 #define __GCS_H
 
-#include <AP_HAL.h>
-#include <AP_Common.h>
-#include <GCS_MAVLink.h>
-#include <DataFlash.h>
-#include <AP_Mission.h>
-#include "../AP_BattMonitor/AP_BattMonitor.h"
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Common/AP_Common.h>
+#include "GCS_MAVLink.h"
+#include <DataFlash/DataFlash.h>
+#include <AP_Mission/AP_Mission.h>
+#include <AP_BattMonitor/AP_BattMonitor.h>
 #include <stdint.h>
-#include <MAVLink_routing.h>
-#include "../AP_SerialManager/AP_SerialManager.h"
-#include "../AP_Mount/AP_Mount.h"
+#include "MAVLink_routing.h"
+#include <AP_SerialManager/AP_SerialManager.h>
+#include <AP_Mount/AP_Mount.h>
+
+// check if a message will fit in the payload space available
+#define HAVE_PAYLOAD_SPACE(chan, id) (comm_get_txspace(chan) >= MAVLINK_NUM_NON_PAYLOAD_BYTES+MAVLINK_MSG_ID_ ## id ## _LEN)
+#define CHECK_PAYLOAD_SIZE(id) if (comm_get_txspace(chan) < MAVLINK_NUM_NON_PAYLOAD_BYTES+MAVLINK_MSG_ID_ ## id ## _LEN) return false
+#define CHECK_PAYLOAD_SIZE2(id) if (!HAVE_PAYLOAD_SPACE(chan, id)) return false
 
 //  GCS Message ID's
 /// NOTE: to ensure we never block on sending MAVLink messages
@@ -58,6 +63,10 @@ enum ap_message {
     MSG_GIMBAL_REPORT,
     MSG_EKF_STATUS_REPORT,
     MSG_LOCAL_POSITION,
+    MSG_PID_TUNING,
+    MSG_VIBRATION,
+    MSG_RPM,
+    MSG_MISSION_ITEM_REACHED,
     MSG_RETRY_DEFERRED // this must be last
 };
 
@@ -70,11 +79,7 @@ class GCS_MAVLINK
 {
 public:
     GCS_MAVLINK();
-#if APM_BUILD_DELEGATES
-    typedef DELEGATE_FUNCTION1(void, AP_HAL::UARTDriver*) run_cli_fn;
-#else
-    typedef void (*run_cli_fn)(AP_HAL::UARTDriver *);
-#endif
+    FUNCTOR_TYPEDEF(run_cli_fn, void, AP_HAL::UARTDriver*);
     void        update(run_cli_fn run_cli);
     void        init(AP_HAL::UARTDriver *port, mavlink_channel_t mav_chan);
     void        setup_uart(const AP_SerialManager& serial_manager, AP_SerialManager::SerialProtocol protocol, uint8_t instance);
@@ -125,6 +130,9 @@ public:
     // last time we got a non-zero RSSI from RADIO_STATUS
     static uint32_t last_radio_status_remrssi_ms;
 
+    // mission item index to be sent on queued msg, delayed or not
+    uint16_t mission_item_reached_index = AP_MISSION_CMD_INDEX_NONE;
+
     // common send functions
     void send_meminfo(void);
     void send_power_status(void);
@@ -140,8 +148,9 @@ public:
 #if AP_AHRS_NAVEKF_AVAILABLE
     void send_opticalflow(AP_AHRS_NavEKF &ahrs, const OpticalFlow &optflow);
 #endif
-    void send_autopilot_version(void) const;
+    void send_autopilot_version() const;
     void send_local_position(const AP_AHRS &ahrs) const;
+    void send_vibration(const AP_InertialSensor &ins) const;
 
     // return a bitmap of active channels. Used by libraries to loop
     // over active channels to send to all active channels    
@@ -159,6 +168,12 @@ public:
       This is a no-op if no routes to components have been learned
     */
     static void send_to_components(const mavlink_message_t* msg) { routing.send_to_components(msg); }
+
+    /*
+      search for a component in the routing table with given mav_type and retrieve it's sysid, compid and channel
+      returns if a matching component is found
+     */
+    static bool find_by_mavtype(uint8_t mav_type, uint8_t &sysid, uint8_t &compid, mavlink_channel_t &channel) { return routing.find_by_mavtype(mav_type, sysid, compid, channel); }
 
 private:
     void        handleMessage(mavlink_message_t * msg);
@@ -299,11 +314,7 @@ private:
     void handle_radio_status(mavlink_message_t *msg, DataFlash_Class &dataflash, bool log_radio);
     void handle_serial_control(mavlink_message_t *msg, AP_GPS &gps);
     void lock_channel(mavlink_channel_t chan, bool lock);
-#if APM_BUILD_DELEGATES
-    typedef DELEGATE_FUNCTION1(bool, uint8_t) set_mode_fn;
-#else    
-    typedef bool (*set_mode_fn)(uint8_t);
-#endif
+    FUNCTOR_TYPEDEF(set_mode_fn, bool, uint8_t);
     void handle_set_mode(mavlink_message_t* msg, set_mode_fn set_mode);
     void handle_gimbal_report(AP_Mount &mount, mavlink_message_t *msg) const;
 

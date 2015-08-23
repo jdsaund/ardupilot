@@ -14,8 +14,8 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <AP_AHRS.h>
-#include <AP_HAL.h>
+#include "AP_AHRS.h"
+#include <AP_HAL/AP_HAL.h>
 extern const AP_HAL::HAL& hal;
 
 #if AHRS_EKF_USE_ALWAYS
@@ -255,7 +255,11 @@ void AP_AHRS::update_trig(void)
 
     // sin_roll, sin_pitch
     _sin_pitch = -temp.c.x;
-    _sin_roll = temp.c.y / _cos_pitch;
+    if (is_zero(_cos_pitch)) {
+        _sin_roll = sinf(roll);
+    } else {
+        _sin_roll = temp.c.y / _cos_pitch;
+    }
 
     // sanity checks
     if (yaw_vector.is_inf() || yaw_vector.is_nan()) {

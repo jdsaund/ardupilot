@@ -20,7 +20,7 @@ static const struct Menu::command log_menu_commands[] PROGMEM = {
 };
 
 // A Macro to create the Menu
-MENU2(log_menu, "Log", log_menu_commands, MENU_FUNC(print_log_menu));
+MENU2(log_menu, "Log", log_menu_commands, FUNCTOR_BIND(&plane, &Plane::print_log_menu, bool));
 
 bool Plane::print_log_menu(void)
 {
@@ -168,6 +168,12 @@ void Plane::Log_Write_Attitude(void)
     targets.z = 0;          //Plane does not have the concept of navyaw. This is a placeholder.
 
     DataFlash.Log_Write_Attitude(ahrs, targets);
+#if HAL_CPU_CLASS > HAL_CPU_CLASS_16
+    DataFlash.Log_Write_PID(LOG_PIDR_MSG, rollController.get_pid_info());
+    DataFlash.Log_Write_PID(LOG_PIDP_MSG, pitchController.get_pid_info());
+    DataFlash.Log_Write_PID(LOG_PIDY_MSG, yawController.get_pid_info());
+    DataFlash.Log_Write_PID(LOG_PIDS_MSG, steerController.get_pid_info());
+#endif
 
 #if AP_AHRS_NAVEKF_AVAILABLE
  #if OPTFLOW == ENABLED
@@ -186,6 +192,7 @@ void Plane::Log_Write_Attitude(void)
 
 struct PACKED log_Performance {
     LOG_PACKET_HEADER;
+    uint64_t time_us;
     uint32_t loop_time;
     uint16_t main_loop_count;
     uint32_t g_dt_max;
@@ -201,6 +208,7 @@ void Plane::Log_Write_Performance()
 {
     struct log_Performance pkt = {
         LOG_PACKET_HEADER_INIT(LOG_PERFORMANCE_MSG),
+        time_us         : hal.scheduler->micros64(),
         loop_time       : millis() - perf_mon_timer,
         main_loop_count : mainLoop_count,
         g_dt_max        : G_Dt_max,
@@ -213,16 +221,9 @@ void Plane::Log_Write_Performance()
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
-// Write a mission command. Total length : 36 bytes
-void Plane::Log_Write_Cmd(const AP_Mission::Mission_Command &cmd)
-{
-    mavlink_mission_item_t mav_cmd = {};
-    AP_Mission::mission_cmd_to_mavlink(cmd,mav_cmd);
-    DataFlash.Log_Write_MavCmd(mission.num_commands(),mav_cmd);
-}
-
 struct PACKED log_Startup {
     LOG_PACKET_HEADER;
+    uint64_t time_us;
     uint8_t startup_type;
     uint16_t command_total;
 };
@@ -231,30 +232,21 @@ void Plane::Log_Write_Startup(uint8_t type)
 {
     struct log_Startup pkt = {
         LOG_PACKET_HEADER_INIT(LOG_STARTUP_MSG),
+        time_us         : hal.scheduler->micros64(),
         startup_type    : type,
         command_total   : mission.num_commands()
     };
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 
     // write all commands to the dataflash as well
-    Log_Write_EntireMission();
-}
-
-void Plane::Log_Write_EntireMission()
-{
-    DataFlash.Log_Write_Message_P(PSTR("New mission"));
-
-    AP_Mission::Mission_Command cmd;
-    for (uint16_t i = 0; i < mission.num_commands(); i++) {
-        if (mission.read_cmd_from_storage(i,cmd)) {
-            Log_Write_Cmd(cmd);
-        }
+    if (should_log(MASK_LOG_CMD)) {
+        DataFlash.Log_Write_EntireMission(mission);
     }
 }
 
 struct PACKED log_Control_Tuning {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     int16_t nav_roll_cd;
     int16_t roll;
     int16_t nav_pitch_cd;
@@ -270,7 +262,7 @@ void Plane::Log_Write_Control_Tuning()
     Vector3f accel = ins.get_accel();
     struct log_Control_Tuning pkt = {
         LOG_PACKET_HEADER_INIT(LOG_CTUN_MSG),
-        time_ms         : millis(),
+        time_us         : hal.scheduler->micros64(),
         nav_roll_cd     : (int16_t)nav_roll_cd,
         roll            : (int16_t)ahrs.roll_sensor,
         nav_pitch_cd    : (int16_t)nav_pitch_cd,
@@ -290,7 +282,7 @@ void Plane::Log_Write_TECS_Tuning(void)
 
 struct PACKED log_Nav_Tuning {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     uint16_t yaw;
     float wp_distance;
     int16_t target_bearing_cd;
@@ -306,7 +298,7 @@ void Plane::Log_Write_Nav_Tuning()
 {
     struct log_Nav_Tuning pkt = {
         LOG_PACKET_HEADER_INIT(LOG_NTUN_MSG),
-        time_ms             : millis(),
+        time_us             : hal.scheduler->micros64(),
         yaw                 : (uint16_t)ahrs.yaw_sensor,
         wp_distance         : auto_state.wp_distance,
         target_bearing_cd   : (int16_t)nav_controller->target_bearing_cd(),
@@ -321,7 +313,7 @@ void Plane::Log_Write_Nav_Tuning()
 
 struct PACKED log_Status {
     LOG_PACKET_HEADER;
-    uint32_t timestamp;
+    uint64_t time_us;
     uint8_t is_flying;
     float is_flying_probability;
     uint8_t armed;
@@ -332,7 +324,7 @@ void Plane::Log_Write_Status()
 {
     struct log_Status pkt = {
         LOG_PACKET_HEADER_INIT(LOG_STATUS_MSG)
-        ,timestamp   : millis()
+        ,time_us   : hal.scheduler->micros64()
         ,is_flying   : is_flying()
         ,is_flying_probability : isFlyingProbability
         ,armed       : hal.util->get_soft_armed()
@@ -344,7 +336,7 @@ void Plane::Log_Write_Status()
 
 struct PACKED log_Sonar {
     LOG_PACKET_HEADER;
-    uint32_t timestamp;
+    uint64_t time_us;
     float distance;
     float voltage;
     float baro_alt;
@@ -360,7 +352,7 @@ void Plane::Log_Write_Sonar()
 #if RANGEFINDER_ENABLED == ENABLED
     struct log_Sonar pkt = {
         LOG_PACKET_HEADER_INIT(LOG_SONAR_MSG),
-        timestamp   : millis(),
+        time_us     : hal.scheduler->micros64(),
         distance    : (float)rangefinder.distance_cm(),
         voltage     : rangefinder.voltage_mv()*0.001f,
         baro_alt    : barometer.get_altitude(),
@@ -375,7 +367,7 @@ void Plane::Log_Write_Sonar()
 
 struct PACKED log_Optflow {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     uint8_t surface_quality;
     float flow_x;
     float flow_y;
@@ -395,7 +387,7 @@ void Plane::Log_Write_Optflow()
     const Vector2f &bodyRate = optflow.bodyRate();
     struct log_Optflow pkt = {
         LOG_PACKET_HEADER_INIT(LOG_OPTFLOW_MSG),
-        time_ms         : millis(),
+        time_us         : hal.scheduler->micros64(),
         surface_quality : optflow.quality(),
         flow_x           : flowRate.x,
         flow_y           : flowRate.y,
@@ -408,7 +400,7 @@ void Plane::Log_Write_Optflow()
 
 struct PACKED log_Arm_Disarm {
     LOG_PACKET_HEADER;
-    uint32_t time_ms;
+    uint64_t time_us;
     uint8_t  arm_state;
     uint16_t arm_checks;
 };
@@ -424,7 +416,7 @@ void Plane::Log_Write_Current()
 void Plane::Log_Arm_Disarm() {
     struct log_Arm_Disarm pkt = {
         LOG_PACKET_HEADER_INIT(LOG_ARM_DISARM_MSG),
-        time_ms                 : millis(),
+        time_us                 : hal.scheduler->micros64(),
         arm_state               : arming.is_armed(),
         arm_checks              : arming.get_enabled_checks()      
     };
@@ -458,27 +450,44 @@ void Plane::Log_Write_Airspeed(void)
     DataFlash.Log_Write_Airspeed(airspeed);
 }
 
+// log ahrs home and EKF origin to dataflash
+void Plane::Log_Write_Home_And_Origin()
+{
+#if AP_AHRS_NAVEKF_AVAILABLE
+    // log ekf origin if set
+    Location ekf_orig;
+    if (ahrs.get_NavEKF_const().getOriginLLH(ekf_orig)) {
+        DataFlash.Log_Write_Origin(LogOriginType::ekf_origin, ekf_orig);
+    }
+#endif
+
+    // log ahrs home if set
+    if (home_is_set != HOME_UNSET) {
+        DataFlash.Log_Write_Origin(LogOriginType::ahrs_home, ahrs.get_home());
+    }
+}
+
 static const struct LogStructure log_structure[] PROGMEM = {
     LOG_COMMON_STRUCTURES,
     { LOG_PERFORMANCE_MSG, sizeof(log_Performance), 
-      "PM",  "IHIhhhBH", "LTime,MLC,gDt,GDx,GDy,GDz,I2CErr,INSErr" },
+      "PM",  "QIHIhhhBH", "TimeUS,LTime,MLC,gDt,GDx,GDy,GDz,I2CErr,INSErr" },
     { LOG_STARTUP_MSG, sizeof(log_Startup),         
-      "STRT", "BH",         "SType,CTot" },
+      "STRT", "QBH",         "TimeUS,SType,CTot" },
     { LOG_CTUN_MSG, sizeof(log_Control_Tuning),     
-      "CTUN", "Icccchhf",    "TimeMS,NavRoll,Roll,NavPitch,Pitch,ThrOut,RdrOut,AccY" },
+      "CTUN", "Qcccchhf",    "TimeUS,NavRoll,Roll,NavPitch,Pitch,ThrOut,RdrOut,AccY" },
     { LOG_NTUN_MSG, sizeof(log_Nav_Tuning),         
-      "NTUN", "ICfccccfI",   "TimeMS,Yaw,WpDist,TargBrg,NavBrg,AltErr,Arspd,Alt,GSpdCM" },
+      "NTUN", "QCfccccfI",   "TimeUS,Yaw,WpDist,TargBrg,NavBrg,AltErr,Arspd,Alt,GSpdCM" },
     { LOG_SONAR_MSG, sizeof(log_Sonar),             
-      "SONR", "IffffBBf",   "TimeMS,DistCM,Volt,BaroAlt,GSpd,Thr,Cnt,Corr" },
+      "SONR", "QffffBBf",   "TimeUS,DistCM,Volt,BaroAlt,GSpd,Thr,Cnt,Corr" },
     { LOG_ARM_DISARM_MSG, sizeof(log_Arm_Disarm),
-      "ARM", "IHB", "TimeMS,ArmState,ArmChecks" },
+      "ARM", "QBH", "TimeUS,ArmState,ArmChecks" },
     { LOG_ATRP_MSG, sizeof(AP_AutoTune::log_ATRP),
-      "ATRP", "IBBcfff",  "TimeMS,Type,State,Servo,Demanded,Achieved,P" },
+      "ATRP", "QBBcfff",  "TimeUS,Type,State,Servo,Demanded,Achieved,P" },
     { LOG_STATUS_MSG, sizeof(log_Status),
-      "STAT", "IBfBB",  "TimeMS,isFlying,isFlyProb,Armed,Safety" },
+      "STAT", "QBfBB",  "TimeUS,isFlying,isFlyProb,Armed,Safety" },
 #if OPTFLOW == ENABLED
     { LOG_OPTFLOW_MSG, sizeof(log_Optflow),
-      "OF",   "IBffff",   "TimeMS,Qual,flowX,flowY,bodyX,bodyY" },
+      "OF",   "QBffff",   "TimeUS,Qual,flowX,flowY,bodyX,bodyY" },
 #endif
     TECS_LOG_FORMAT(LOG_TECS_MSG)
 };
@@ -493,8 +502,8 @@ void Plane::Log_Read(uint16_t log_num, int16_t start_page, int16_t end_page)
 
     cliSerial->println_P(PSTR(HAL_BOARD_NAME));
 
-	DataFlash.LogReadProcess(log_num, start_page, end_page, 
-                             AP_HAL_MEMBERPROC(&Plane::print_flight_mode),
+	DataFlash.LogReadProcess(log_num, start_page, end_page,
+                             FUNCTOR_BIND_MEMBER(&Plane::print_flight_mode, void, AP_HAL::BetterStream *, uint8_t),
                              cliSerial);
 }
 #endif // CLI_ENABLED
@@ -503,16 +512,10 @@ void Plane::Log_Read(uint16_t log_num, int16_t start_page, int16_t end_page)
 void Plane::start_logging() 
 {
     DataFlash.StartNewLog();
-    DataFlash.Log_Write_Message_P(PSTR(FIRMWARE_STRING));
-#if defined(PX4_GIT_VERSION) && defined(NUTTX_GIT_VERSION)
-    DataFlash.Log_Write_Message_P(PSTR("PX4: " PX4_GIT_VERSION " NuttX: " NUTTX_GIT_VERSION));
-#endif
 
-    // write system identifier as well if available
-    char sysid[40];
-    if (hal.util->get_system_id(sysid)) {
-        DataFlash.Log_Write_Message(sysid);
-    }
+    DataFlash.Log_Write_SysInfo(PSTR(FIRMWARE_STRING));
+
+    Log_Write_Startup(TYPE_GROUNDSTART_MSG);
 }
 
 /*
@@ -520,7 +523,7 @@ void Plane::start_logging()
  */
 void Plane::log_init(void)
 {
-    DataFlash.Init(log_structure, sizeof(log_structure)/sizeof(log_structure[0]));
+    DataFlash.Init(log_structure, ARRAY_SIZE(log_structure));
     if (!DataFlash.CardInserted()) {
         gcs_send_text_P(SEVERITY_LOW, PSTR("No dataflash card inserted"));
         g.log_bitmask.set(0);
@@ -536,10 +539,42 @@ void Plane::log_init(void)
 
 #else // LOGGING_ENABLED
 
-int8_t Plane::process_logs(uint8_t argc, const Menu::arg *argv) 
-{
-    return 0;
-}
+ #if CLI_ENABLED == ENABLED
+bool Plane::print_log_menu(void) { return true; }
+int8_t Plane::dump_log(uint8_t argc, const Menu::arg *argv) { return 0; }
+int8_t Plane::erase_logs(uint8_t argc, const Menu::arg *argv) { return 0; }
+int8_t Plane::select_logs(uint8_t argc, const Menu::arg *argv) { return 0; }
+int8_t Plane::process_logs(uint8_t argc, const Menu::arg *argv) { return 0; }
+ #endif // CLI_ENABLED == ENABLED
 
+void Plane::do_erase_logs(void) {}
+void Plane::Log_Write_Attitude(void) {}
+void Plane::Log_Write_Performance() {}
+void Plane::Log_Write_Startup(uint8_t type) {}
+void Plane::Log_Write_Control_Tuning() {}
+void Plane::Log_Write_TECS_Tuning(void) {}
+void Plane::Log_Write_Nav_Tuning() {}
+void Plane::Log_Write_Status() {}
+void Plane::Log_Write_Sonar() {}
+
+ #if OPTFLOW == ENABLED
+void Plane::Log_Write_Optflow() {}
+ #endif
+
+void Plane::Log_Write_Current() {}
+void Plane::Log_Arm_Disarm() {}
+void Plane::Log_Write_GPS(uint8_t instance) {}
+void Plane::Log_Write_IMU() {}
+void Plane::Log_Write_RC(void) {}
+void Plane::Log_Write_Baro(void) {}
+void Plane::Log_Write_Airspeed(void) {}
+void Plane::Log_Write_Home_And_Origin() {}
+
+ #if CLI_ENABLED == ENABLED
+void Plane::Log_Read(uint16_t log_num, int16_t start_page, int16_t end_page) {}
+ #endif // CLI_ENABLED
+
+void Plane::start_logging() {}
+void Plane::log_init(void) {}
 
 #endif // LOGGING_ENABLED

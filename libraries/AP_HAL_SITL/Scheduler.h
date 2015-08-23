@@ -2,7 +2,7 @@
 #ifndef __AP_HAL_SITL_SCHEDULER_H__
 #define __AP_HAL_SITL_SCHEDULER_H__
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include "AP_HAL_SITL_Namespace.h"
 #include <sys/time.h>
@@ -37,7 +37,7 @@ public:
     void     system_initialized();
 
     void     reboot(bool hold_in_bootloader);
-    void     panic(const prog_char_t *errormsg);
+    void     panic(const prog_char_t *errormsg) NORETURN;
 
     bool     interrupts_are_blocked(void) {
         return _nested_atomic_ctr != 0;

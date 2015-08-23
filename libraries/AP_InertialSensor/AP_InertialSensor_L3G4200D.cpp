@@ -28,10 +28,10 @@ Datasheets:
   L3G4200D gyro http://www.st.com/st-web-ui/static/active/en/resource/technical/document/datasheet/CD00265057.pdf
 */
 
-#include <AP_HAL.h>
+#include <AP_HAL/AP_HAL.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_LINUX
 
-#include <AP_Math.h>
+#include <AP_Math/AP_Math.h>
 #include "AP_InertialSensor_L3G4200D.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -129,6 +129,23 @@ AP_InertialSensor_L3G4200D::~AP_InertialSensor_L3G4200D()
     pthread_spin_destroy(&_data_lock);
 }
 
+/*
+  detect the sensor
+ */
+AP_InertialSensor_Backend *AP_InertialSensor_L3G4200D::detect(AP_InertialSensor &_imu)
+{
+    AP_InertialSensor_L3G4200D *sensor = new AP_InertialSensor_L3G4200D(_imu);
+    if (sensor == NULL) {
+        return NULL;
+    }
+    if (!sensor->_init_sensor()) {
+        delete sensor;
+        return NULL;
+    }
+
+    return sensor;
+}
+
 bool AP_InertialSensor_L3G4200D::_init_sensor(void) 
 {
     // get pointer to i2c bus semaphore
@@ -221,7 +238,7 @@ bool AP_InertialSensor_L3G4200D::_init_sensor(void)
     i2c_sem->give();
 
     // start the timer process to read samples
-    hal.scheduler->register_timer_process(AP_HAL_MEMBERPROC(&AP_InertialSensor_L3G4200D::_accumulate));
+    hal.scheduler->register_timer_process(FUNCTOR_BIND_MEMBER(&AP_InertialSensor_L3G4200D::_accumulate, void));
 
     _gyro_instance = _imu.register_gyro();
     _accel_instance = _imu.register_accel();

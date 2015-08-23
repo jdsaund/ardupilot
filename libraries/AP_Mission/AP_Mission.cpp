@@ -4,7 +4,7 @@
 /// @brief   Handles the MAVLINK command mission stack.  Reads and writes mission to storage.
 
 #include "AP_Mission.h"
-#include <AP_Terrain.h>
+#include <AP_Terrain/AP_Terrain.h>
 
 const AP_Param::GroupInfo AP_Mission::var_info[] PROGMEM = {
 
@@ -90,6 +90,11 @@ void AP_Mission::resume()
             return;
         }
     }
+
+    // ensure cache coherence
+    // don't bother checking if the read is successful. If it fails _nav_cmd
+    // won't change and we'll continue flying the old cached command.
+    read_cmd_from_storage(_nav_cmd.index, _nav_cmd);
 
     // restart active navigation command. We run these on resume()
     // regardless of whether the mission was stopped, as we may be
@@ -193,7 +198,7 @@ void AP_Mission::update()
     }
 
     // check if we have an active do command
-    if (!_flags.do_cmd_loaded || _do_cmd.index == AP_MISSION_CMD_INDEX_NONE) {
+    if (!_flags.do_cmd_loaded) {
         advance_current_do_cmd();
     }else{
         // run the active do command
@@ -341,6 +346,11 @@ bool AP_Mission::set_current_cmd(uint16_t index)
             index = cmd.index+1;
         }
 
+        // if we have not found a do command then set flag to show there are no do-commands to be run before nav command completes
+        if (!_flags.do_cmd_loaded) {
+            _flags.do_cmd_all_done = true;
+        }
+
         // if we got this far then the mission can safely be "resumed" from the specified index so we set the state to "stopped"
         _flags.state = MISSION_STOPPED;
         return true;
@@ -376,6 +386,11 @@ bool AP_Mission::set_current_cmd(uint16_t index)
         }
         // move onto next command
         index = cmd.index+1;
+    }
+
+    // if we have not found a do command then set flag to show there are no do-commands to be run before nav command completes
+    if (!_flags.do_cmd_loaded) {
+        _flags.do_cmd_all_done = true;
     }
 
     // if we got this far we must have successfully advanced the nav command
@@ -671,6 +686,16 @@ bool AP_Mission::mavlink_to_mission_cmd(const mavlink_mission_item_t& packet, AP
         cmd.content.guided_limits.alt_min = packet.param2;  // min alt below which the command will be aborted.  0 for no lower alt limit
         cmd.content.guided_limits.alt_max = packet.param3;  // max alt above which the command will be aborted.  0 for no upper alt limit
         cmd.content.guided_limits.horiz_max = packet.param4;// max horizontal distance the vehicle can move before the command will be aborted.  0 for no horizontal limit
+        break;
+
+    case MAV_CMD_DO_AUTOTUNE_ENABLE:                    // MAV ID: 211
+        cmd.p1 = packet.param1;                         // disable=0 enable=1
+        break;
+
+    case MAV_CMD_NAV_ALTITUDE_WAIT:                     // MAV ID: 83
+        cmd.content.altitude_wait.altitude = packet.param1;
+        cmd.content.altitude_wait.descent_rate = packet.param2;
+        cmd.content.altitude_wait.wiggle_time = packet.param3;
         break;
 
     default:
@@ -976,6 +1001,16 @@ bool AP_Mission::mission_cmd_to_mavlink(const AP_Mission::Mission_Command& cmd, 
         packet.param4 = cmd.content.guided_limits.horiz_max;// max horizontal distance the vehicle can move before the command will be aborted.  0 for no horizontal limit
         break;
 
+    case MAV_CMD_DO_AUTOTUNE_ENABLE:
+        packet.param1 = cmd.p1;                         // disable=0 enable=1
+        break;
+
+    case MAV_CMD_NAV_ALTITUDE_WAIT:                     // MAV ID: 83
+        packet.param1 = cmd.content.altitude_wait.altitude;
+        packet.param2 = cmd.content.altitude_wait.descent_rate;
+        packet.param3 = cmd.content.altitude_wait.wiggle_time;
+        break;
+
     default:
         // unrecognised command
         return false;
@@ -1068,6 +1103,9 @@ bool AP_Mission::advance_current_nav_cmd()
         cmd_index++;
     }
 
+    // avoid endless loops
+    uint8_t max_loops = 255;
+
     // search until we find next nav command or reach end of command list
     while (!_flags.nav_cmd_loaded) {
         // get next command
@@ -1089,10 +1127,20 @@ bool AP_Mission::advance_current_nav_cmd()
                 _do_cmd = cmd;
                 _flags.do_cmd_loaded = true;
                 _cmd_start_fn(_do_cmd);
+            } else {
+                // protect against endless loops of do-commands
+                if (max_loops-- == 0) {
+                    return false;
+                }
             }
         }
         // move onto next command
         cmd_index = cmd.index+1;
+    }
+
+    // if we have not found a do command then set flag to show there are no do-commands to be run before nav command completes
+    if (!_flags.do_cmd_loaded) {
+        _flags.do_cmd_all_done = true;
     }
 
     // if we got this far we must have successfully advanced the nav command

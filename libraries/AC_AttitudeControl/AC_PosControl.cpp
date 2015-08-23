@@ -1,7 +1,7 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-#include <AP_HAL.h>
-#include <AC_PosControl.h>
-#include <AP_Math.h>
+#include <AP_HAL/AP_HAL.h>
+#include "AC_PosControl.h"
+#include <AP_Math/AP_Math.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -46,6 +46,7 @@ AC_PosControl::AC_PosControl(const AP_AHRS& ahrs, const AP_InertialNav& inav,
     _speed_up_cms(POSCONTROL_SPEED_UP),
     _speed_cms(POSCONTROL_SPEED),
     _accel_z_cms(POSCONTROL_ACCEL_Z),
+    _accel_last_z_cms(0.0f),
     _accel_cms(POSCONTROL_ACCEL_XY),
     _leash(POSCONTROL_LEASH_LENGTH_MIN),
     _leash_down_z(POSCONTROL_LEASH_LENGTH_MIN),
@@ -60,13 +61,20 @@ AC_PosControl::AC_PosControl(const AP_AHRS& ahrs, const AP_InertialNav& inav,
     AP_Param::setup_object_defaults(this, var_info);
 
     // initialise flags
-    _flags.recalc_leash_xy = true;
     _flags.recalc_leash_z = true;
+    _flags.recalc_leash_xy = true;
     _flags.reset_desired_vel_to_pos = true;
     _flags.reset_rate_to_accel_xy = true;
     _flags.reset_accel_to_lean_xy = true;
     _flags.reset_rate_to_accel_z = true;
     _flags.reset_accel_to_throttle = true;
+    _flags.freeze_ff_xy = true;
+    _flags.freeze_ff_z = true;
+    _limit.pos_up = true;
+    _limit.pos_down = true;
+    _limit.vel_up = true;
+    _limit.vel_down = true;
+    _limit.accel_xy = true;
 }
 
 ///
@@ -246,7 +254,7 @@ void AC_PosControl::init_takeoff()
 {
     const Vector3f& curr_pos = _inav.get_position();
 
-    _pos_target.z = curr_pos.z + POSCONTROL_TAKEOFF_JUMP_CM;
+    _pos_target.z = curr_pos.z;
 
     // freeze feedforward to avoid jump
     freeze_ff_z();
@@ -409,6 +417,7 @@ void AC_PosControl::accel_to_throttle(float accel_target_z)
 
     // set input to PID
     _pid_accel_z.set_input_filter_d(_accel_error.z);
+    _pid_accel_z.set_desired_rate(accel_target_z);
 
     // separately calculate p, i, d values for logging
     p = _pid_accel_z.get_p();
@@ -660,7 +669,7 @@ void AC_PosControl::update_vel_controller_xyz(float ekfNavVelGainScaler)
     accel_to_lean_angles(dt, ekfNavVelGainScaler);
 
     // update altitude target
-    set_alt_target_from_climb_rate(_vel_desired.z, dt);
+    set_alt_target_from_climb_rate(_vel_desired.z, dt, false);
 
     // run z-axis position controller
     update_z_controller();

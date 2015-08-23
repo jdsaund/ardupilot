@@ -94,7 +94,8 @@ void Plane::geofence_load(void)
     uint8_t i;
 
     if (geofence_state == NULL) {
-        if (hal.util->available_memory() < 512 + sizeof(struct GeofenceState)) {
+        uint16_t boundary_size = sizeof(Vector2l) * max_fencepoints();
+        if (hal.util->available_memory() < 100 + boundary_size + sizeof(struct GeofenceState)) {
             // too risky to enable as we could run out of stack
             goto failed;
         }
@@ -104,7 +105,7 @@ void Plane::geofence_load(void)
             goto failed;
         }
 
-        geofence_state->boundary = (Vector2l *)calloc(sizeof(Vector2l), max_fencepoints());
+        geofence_state->boundary = (Vector2l *)calloc(1, boundary_size);
         if (geofence_state->boundary == NULL) {
             free(geofence_state);
             geofence_state = NULL;
@@ -374,6 +375,12 @@ void Plane::geofence_check(bool altitude_check_only)
 
     case FENCE_ACTION_GUIDED:
     case FENCE_ACTION_GUIDED_THR_PASS:
+        // make sure we don't auto trim the surfaces on this mode change
+        int8_t saved_auto_trim = g.auto_trim;
+        g.auto_trim.set(0);
+        set_mode(GUIDED);
+        g.auto_trim.set(saved_auto_trim);
+
         if (g.fence_ret_rally != 0) { //return to a rally point
             guided_WP_loc = rally.calc_best_rally_or_home_location(current_loc, get_RTL_altitude());
 
@@ -400,13 +407,6 @@ void Plane::geofence_check(bool altitude_check_only)
         setup_terrain_target_alt(guided_WP_loc);
 
         set_guided_WP();
-
-        // make sure we don't auto trim the surfaces on this mode change
-        int8_t saved_auto_trim = g.auto_trim;
-        g.auto_trim.set(0);
-
-        set_mode(GUIDED);
-        g.auto_trim.set(saved_auto_trim);
 
         if (g.fence_action == FENCE_ACTION_GUIDED_THR_PASS) {
             guided_throttle_passthru = true;

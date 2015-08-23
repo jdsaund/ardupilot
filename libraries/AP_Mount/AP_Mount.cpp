@@ -1,14 +1,15 @@
 // -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 
-#include <AP_Common.h>
-#include <AP_Progmem.h>
-#include <AP_Param.h>
-#include <AP_Mount.h>
-#include <AP_Mount_Backend.h>
-#include <AP_Mount_Servo.h>
-#include <AP_Mount_MAVLink.h>
-#include <AP_Mount_Alexmos.h>
-#include <AP_Mount_SToRM32.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_Progmem/AP_Progmem.h>
+#include <AP_Param/AP_Param.h>
+#include "AP_Mount.h"
+#include "AP_Mount_Backend.h"
+#include "AP_Mount_Servo.h"
+#include "AP_Mount_MAVLink.h"
+#include "AP_Mount_Alexmos.h"
+#include "AP_Mount_SToRM32.h"
+#include "AP_Mount_SToRM32_serial.h"
 
 const AP_Param::GroupInfo AP_Mount::var_info[] PROGMEM = {
     // @Param: _DEFLT_MODE
@@ -195,7 +196,7 @@ const AP_Param::GroupInfo AP_Mount::var_info[] PROGMEM = {
     // @Param: _TYPE
     // @DisplayName: Mount Type
     // @Description: Mount Type (None, Servo or MAVLink)
-    // @Values: 0:None, 1:Servo, 2:MAVLink, 3:Alexmos Serial, 4:SToRM32
+    // @Values: 0:None, 1:Servo, 2:3DR Solo, 3:Alexmos Serial, 4:SToRM32 MAVLink, 5:SToRM32 Serial
     // @User: Standard
     AP_GROUPINFO("_TYPE", 19, AP_Mount, state[0]._type, 0),
 
@@ -451,7 +452,7 @@ const AP_Param::GroupInfo AP_Mount::var_info[] PROGMEM = {
     // @Param: 2_TYPE
     // @DisplayName: Mount2 Type
     // @Description: Mount Type (None, Servo or MAVLink)
-    // @Values: 0:None, 1:Servo, 2:MAVLink, 3:Alexmos Serial, 4:SToRM32
+    // @Values: 0:None, 1:Servo, 2:3DR Solo, 3:Alexmos Serial, 4:SToRM32 MAVLink, 5:SToRM32 Serial
     // @User: Standard
     AP_GROUPINFO("2_TYPE",           42, AP_Mount, state[1]._type, 0),
 #endif // AP_MOUNT_MAX_INSTANCES > 1
@@ -470,7 +471,6 @@ AP_Mount::AP_Mount(const AP_AHRS_TYPE &ahrs, const struct Location &current_loc)
     // initialise backend pointers and mode
     for (uint8_t i=0; i<AP_MOUNT_MAX_INSTANCES; i++) {
         _backends[i] = NULL;
-        state[i]._mode = (enum MAV_MOUNT_MODE)state[i]._default_mode.get();
     }
 }
 
@@ -482,11 +482,23 @@ void AP_Mount::init(const AP_SerialManager& serial_manager)
         return;
     }
 
+    // default mount to servo mount if rc output channels to control roll, tilt or pan have been defined
+    if (!state[0]._type.load()) {
+        if (RC_Channel_aux::function_assigned(RC_Channel_aux::Aux_servo_function_t::k_mount_pan) ||
+            RC_Channel_aux::function_assigned(RC_Channel_aux::Aux_servo_function_t::k_mount_tilt) ||
+            RC_Channel_aux::function_assigned(RC_Channel_aux::Aux_servo_function_t::k_mount_roll)) {
+                state[0]._type.set_and_save(Mount_Type_Servo);
+        }
+    }
+
     // primary is reset to the first instantiated mount
     bool primary_set = false;
 
     // create each instance
     for (uint8_t instance=0; instance<AP_MOUNT_MAX_INSTANCES; instance++) {
+        // default instance's state
+        state[instance]._mode = (enum MAV_MOUNT_MODE)state[instance]._default_mode.get();
+
         MountType mount_type = get_mount_type(instance);
 
         // check for servo mounts
@@ -506,9 +518,14 @@ void AP_Mount::init(const AP_SerialManager& serial_manager)
             _backends[instance] = new AP_Mount_Alexmos(*this, state[instance], instance);
             _num_instances++;
 
-        // check for SToRM32 mounts
+        // check for SToRM32 mounts using MAVLink protocol
         } else if (mount_type == Mount_Type_SToRM32) {
             _backends[instance] = new AP_Mount_SToRM32(*this, state[instance], instance);
+            _num_instances++;
+
+        // check for SToRM32 mounts using serial protocol
+        } else if (mount_type == Mount_Type_SToRM32_serial) {
+            _backends[instance] = new AP_Mount_SToRM32_serial(*this, state[instance], instance);
             _num_instances++;
         }
 
