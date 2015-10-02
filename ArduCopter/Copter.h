@@ -103,7 +103,7 @@
 #include <AP_Parachute/AP_Parachute.h>       // Parachute release library
 #endif
 #if COMPOUND == ENABLED
-#include <AP_Compound.h>        // Compound copter library
+#include <AP_Compound/AP_Compound.h>        // Compound copter library
 #endif
 #include <AP_LandingGear/AP_LandingGear.h>     // Landing Gear library
 #include <AP_Terrain/AP_Terrain.h>
