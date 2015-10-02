@@ -1211,6 +1211,10 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
                     result = MAV_RESULT_ACCEPTED;
                 }
             } else {
+                // sanity check location
+                if (fabsf(packet.param5) > 90.0f || fabsf(packet.param6) > 180.0f) {
+                    break;
+                }
                 Location new_home_loc;
                 new_home_loc.lat = (int32_t)(packet.param5 * 1.0e7f);
                 new_home_loc.lng = (int32_t)(packet.param6 * 1.0e7f);
@@ -1237,6 +1241,10 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
             // param5 : x / lat
             // param6 : y / lon
             // param7 : z / alt
+            // sanity check location
+            if (fabsf(packet.param5) > 90.0f || fabsf(packet.param6) > 180.0f) {
+                break;
+            }
             Location roi_loc;
             roi_loc.lat = (int32_t)(packet.param5 * 1.0e7f);
             roi_loc.lng = (int32_t)(packet.param6 * 1.0e7f);
@@ -1442,7 +1450,7 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
 
         case MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES: {
             if (is_equal(packet.param1,1.0f)) {
-                copter.gcs[chan-MAVLINK_COMM_0].send_autopilot_version();
+                copter.gcs[chan-MAVLINK_COMM_0].send_autopilot_version(FIRMWARE_VERSION);
                 result = MAV_RESULT_ACCEPTED;
             }
             break;
@@ -1781,7 +1789,7 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
 #endif // AC_RALLY == ENABLED
 
     case MAVLINK_MSG_ID_AUTOPILOT_VERSION_REQUEST:
-        copter.gcs[chan-MAVLINK_COMM_0].send_autopilot_version();
+        copter.gcs[chan-MAVLINK_COMM_0].send_autopilot_version(FIRMWARE_VERSION);
         break;
 
     case MAVLINK_MSG_ID_LED_CONTROL:
@@ -1911,4 +1919,3 @@ void Copter::gcs_send_text_fmt(const prog_char_t *fmt, ...)
         }
     }
 }
-

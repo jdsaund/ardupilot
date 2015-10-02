@@ -802,6 +802,13 @@ const AP_Param::Info Copter::var_info[] PROGMEM = {
     // @Description: Throttle acceleration controller D gain.  Compensates for short-term change in desired vertical acceleration vs actual acceleration
     // @Range: 0.000 0.400
     // @User: Standard
+
+    // @Param: ACCEL_Z_FILT_HZ
+    // @DisplayName: Throttle acceleration filter
+    // @Description: Filter applied to acceleration to reduce noise.  Lower values reduce noise but add delay.
+    // @Range: 1.000 100.000
+    // @Units: Hz
+    // @User: Standard
     GGROUP(pid_accel_z, "ACCEL_Z_", AC_PID),
 
     // P controllers
@@ -886,8 +893,6 @@ const AP_Param::Info Copter::var_info[] PROGMEM = {
     GOBJECT(circle_nav, "CIRCLE_",  AC_Circle),
 
 #if FRAME_CONFIG == HELI_FRAME
-    // @Group: ATC_
-    // @Path: ../libraries/AC_AttitudeControl/AC_AttitudeControl_Heli.cpp
     GOBJECT(attitude_control, "ATC_", AC_AttitudeControl_Heli),
 #else
     // @Group: ATC_
@@ -929,7 +934,7 @@ const AP_Param::Info Copter::var_info[] PROGMEM = {
     GOBJECT(camera_mount,           "MNT",  AP_Mount),
 #endif
 
-    // @Group: BATT_
+    // @Group: BATT
     // @Path: ../libraries/AP_BattMonitor/AP_BattMonitor.cpp
     GOBJECT(battery,                "BATT",         AP_BattMonitor),
 
@@ -1012,7 +1017,7 @@ const AP_Param::Info Copter::var_info[] PROGMEM = {
 
 #else
     // @Group: MOT_
-    // @Path: ../libraries/AP_Motors/AP_Motors_Class.cpp
+    // @Path: ../libraries/AP_Motors/AP_MotorsMulticopter.cpp
     GOBJECT(motors, "MOT_",         AP_MotorsMulticopter),
 #endif
 
@@ -1050,7 +1055,7 @@ const AP_Param::Info Copter::var_info[] PROGMEM = {
     // @Path: ../libraries/AP_RPM/AP_RPM.cpp
     GOBJECT(rpm_sensor, "RPM", AP_RPM),
 
-    // @Param: AUTOTUNE_AXIS_BITMASK
+    // @Param: AUTOTUNE_AXES
     // @DisplayName: Autotune axis bitmask
     // @Description: 1-byte bitmap of axes to autotune
     // @Values: 7:All,1:Roll Only,2:Pitch Only,4:Yaw Only,3:Roll and Pitch,5:Roll and Yaw,6:Pitch and Yaw
@@ -1058,12 +1063,19 @@ const AP_Param::Info Copter::var_info[] PROGMEM = {
     // @User: Standard
     GSCALAR(autotune_axis_bitmask, "AUTOTUNE_AXES", 7),  // AUTOTUNE_AXIS_BITMASK_DEFAULT
 
-    // @Param: AUTOTUNE_AGGRESSIVENESS
-    // @DisplayName: autotune_aggressiveness
-    // @Description: autotune_aggressiveness. Defines the bounce back used to detect size of the D term.
+    // @Param: AUTOTUNE_AGGR
+    // @DisplayName: Autotune aggressiveness
+    // @Description: Autotune aggressiveness. Defines the bounce back used to detect size of the D term.
     // @Range: 0.05 0.10
     // @User: Standard
     GSCALAR(autotune_aggressiveness, "AUTOTUNE_AGGR", 0.1f),
+
+    // @Param: AUTOTUNE_MIN_D
+    // @DisplayName: AutoTune minimum D
+    // @Description: Defines the minimum D gain
+    // @Range: 0.001 0.006
+    // @User: Standard
+    GSCALAR(autotune_min_d, "AUTOTUNE_MIN_D", 0.004f),
 
     AP_VAREND
 };

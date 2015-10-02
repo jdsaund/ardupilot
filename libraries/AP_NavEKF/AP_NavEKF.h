@@ -267,6 +267,9 @@ public:
     // this function should not have more than one client
     bool getLastYawResetAngle(float &yawAng);
 
+    // report any reason for why the backend is refusing to initialise    
+    const char *prearm_failure_reason(void) const;
+
     static const struct AP_Param::GroupInfo var_info[];
 
 private:
@@ -682,6 +685,8 @@ private:
     bool useGpsVertVel;             // true if GPS vertical velocity should be used
     float yawResetAngle;            // Change in yaw angle due to last in-flight yaw reset in radians. A positive value means the yaw angle has increased.
     bool yawResetAngleWaiting;      // true when the yaw reset angle has been updated and has not been retrieved via the getLastYawResetAngle() function
+    uint32_t magYawResetTimer_ms;   // timer in msec used to track how long good magnetometer data is failing innovation consistency checks
+    bool consistentMagData;         // true when the magnetometers are passing consistency checks
 
     // Used by smoothing of state corrections
     Vector10 gpsIncrStateDelta;    // vector of corrections to attitude, velocity and position to be applied over the period between the current and next GPS measurement
@@ -827,6 +832,8 @@ private:
         Vector9 SH_MAG;
 	} mag_state;
 
+    // string representing last reason for prearm failure
+    char prearm_fail_string[40];
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_PX4 || CONFIG_HAL_BOARD == HAL_BOARD_VRBRAIN
     // performance counters

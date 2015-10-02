@@ -148,7 +148,7 @@ public:
 #if AP_AHRS_NAVEKF_AVAILABLE
     void send_opticalflow(AP_AHRS_NavEKF &ahrs, const OpticalFlow &optflow);
 #endif
-    void send_autopilot_version() const;
+    void send_autopilot_version(uint8_t major_version, uint8_t minor_version, uint8_t patch_version, uint8_t version_type) const;
     void send_local_position(const AP_AHRS &ahrs) const;
     void send_vibration(const AP_InertialSensor &ins) const;
 
@@ -161,7 +161,7 @@ public:
       connections. This function is static so it can be called from
       any library
     */
-    static void send_statustext_all(const prog_char_t *msg);
+    static void send_statustext_all(gcs_severity severity, const prog_char_t *fmt, ...);
 
     /*
       send a MAVLink message to all components with this vehicle's system id

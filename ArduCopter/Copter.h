@@ -1,6 +1,8 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 
-#define THISFIRMWARE "APM:Copter V3.3-rc9"
+#define THISFIRMWARE "APM:Copter V3.3"
+#define FIRMWARE_VERSION 3,3,0,FIRMWARE_VERSION_TYPE_OFFICIAL
+
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

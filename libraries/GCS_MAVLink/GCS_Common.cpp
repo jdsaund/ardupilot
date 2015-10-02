@@ -1169,16 +1169,19 @@ void GCS_MAVLINK::send_ahrs(AP_AHRS &ahrs)
 /*
   send a statustext message to all active MAVLink connections
  */
-void GCS_MAVLINK::send_statustext_all(const prog_char_t *msg)
+void GCS_MAVLINK::send_statustext_all(gcs_severity severity, const prog_char_t *fmt, ...)
 {
     for (uint8_t i=0; i<MAVLINK_COMM_NUM_BUFFERS; i++) {
         if ((1U<<i) & mavlink_active) {
             mavlink_channel_t chan = (mavlink_channel_t)(MAVLINK_COMM_0+i);
             if (comm_get_txspace(chan) >= MAVLINK_NUM_NON_PAYLOAD_BYTES + MAVLINK_MSG_ID_STATUSTEXT_LEN) {
                 char msg2[50];
-                strncpy_P(msg2, msg, sizeof(msg2));
+                va_list arg_list;
+                va_start(arg_list, fmt);
+                hal.util->vsnprintf_P((char *)msg2, sizeof(msg2), fmt, arg_list);
+                va_end(arg_list);
                 mavlink_msg_statustext_send(chan,
-                                            SEVERITY_HIGH,
+                                            severity,
                                             msg2);
             }
         }
@@ -1262,7 +1265,7 @@ void GCS_MAVLINK::send_opticalflow(AP_AHRS_NavEKF &ahrs, const OpticalFlow &optf
 /*
   send AUTOPILOT_VERSION packet
  */
-void GCS_MAVLINK::send_autopilot_version() const
+void GCS_MAVLINK::send_autopilot_version(uint8_t major_version, uint8_t minor_version, uint8_t patch_version, uint8_t version_type) const
 {
     uint32_t flight_sw_version = 0;
     uint32_t middleware_sw_version = 0;
@@ -1275,6 +1278,11 @@ void GCS_MAVLINK::send_autopilot_version() const
     uint16_t product_id = 0;
     uint64_t uid = 0;
     
+    flight_sw_version = major_version << (8*3) | \
+                        minor_version << (8*2) | \
+                        patch_version << (8*1) | \
+                        version_type  << (8*0);
+
 #if defined(GIT_VERSION)
     strncpy((char *)flight_custom_version, GIT_VERSION, 8);
 #else
@@ -1352,4 +1360,3 @@ void GCS_MAVLINK::send_vibration(const AP_InertialSensor &ins) const
         ins.get_accel_clip_count(2));
 #endif
 }
-
