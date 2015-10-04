@@ -6,7 +6,6 @@
 #include <AP_Common/AP_Common.h>
 #include <RC_Channel/RC_Channel.h>     // RC Channel Library
 #include <RC_Channel/RC_Channel_aux.h>
-#include <AP_Motors/AP_Motors.h>
 
 // servo update rate
 #define AP_COMPOUND_SPEED_DEFAULT     125 // default output rate to the servos
@@ -25,7 +24,10 @@ public:
                 _aileron_out(0),
                 _elevator_out(0),
                 _thrust_out(0),
-                _rudder_idx(RC_Channel_aux::k_none)
+                _rudder_idx(RC_Channel_aux::k_none),
+                _aileron_idx(RC_Channel_aux::k_none),
+                _elevator_idx(RC_Channel_aux::k_none),
+                _thrust_idx(RC_Channel_aux::k_none)
 
         {
             // initialise flags

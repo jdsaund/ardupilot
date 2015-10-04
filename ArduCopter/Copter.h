@@ -311,7 +311,7 @@ private:
 
     // Compound Copter output
 #if COMPOUND == ENABLED
- #define AP_Compound compound
+    AP_Compound compound;
 #endif
 
     // GPS variables

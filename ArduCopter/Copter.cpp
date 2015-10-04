@@ -41,6 +41,9 @@ Copter::Copter(void) :
 #else
     motors(MAIN_LOOP_RATE),
 #endif
+#if COMPOUND == ENABLED
+    compound(MAIN_LOOP_RATE),
+#endif
     scaleLongDown(1),
     wp_bearing(0),
     home_bearing(0),
