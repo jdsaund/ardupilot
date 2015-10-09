@@ -855,30 +855,25 @@ void Copter::do_roi(const AP_Mission::Mission_Command& cmd)
     set_auto_yaw_roi(cmd.content.location);
 }
 
+#if CAMERA == ENABLED
 // do_digicam_configure Send Digicam Configure message with the camera library
 void Copter::do_digicam_configure(const AP_Mission::Mission_Command& cmd)
 {
-#if CAMERA == ENABLED
     camera.configure_cmd(cmd);
-#endif
 }
 
 // do_digicam_control Send Digicam Control message with the camera library
 void Copter::do_digicam_control(const AP_Mission::Mission_Command& cmd)
 {
-#if CAMERA == ENABLED
     camera.control_cmd(cmd);
     log_picture();
-#endif
 }
 
 // do_take_picture - take a picture with the camera library
 void Copter::do_take_picture()
 {
-#if CAMERA == ENABLED
     camera.trigger_pic(true);
     log_picture();
-#endif
 }
 
 // log_picture - log picture taken and send feedback to GCS
@@ -889,6 +884,7 @@ void Copter::log_picture()
         DataFlash.Log_Write_Camera(ahrs, gps, current_loc);
     }
 }
+#endif
 
 // point the camera to a specified angle
 void Copter::do_mount_control(const AP_Mission::Mission_Command& cmd)

@@ -82,80 +82,80 @@
   should be listed here, along with how often they should be called
   (in 2.5ms units) and the maximum time they are expected to take (in
   microseconds)
-  1    = 400hz
-  2    = 200hz
-  4    = 100hz
-  8    = 50hz
-  20   = 20hz
-  40   = 10hz
-  133  = 3hz
-  400  = 1hz
-  4000 = 0.1hz
+  1    = 200hz
+  2    = 100hz
+  4    = 50hz
+  8    = 25hz
+  20   = 10hz
+  40   = 5hz
+  133  = 1.5hz
+  400  = 1.5hz
+  4000 = 0.05hz
   
  */
 const AP_Scheduler::Task Copter::scheduler_tasks[] PROGMEM = {
-    { SCHED_TASK(rc_loop),               4,    130 },
-    { SCHED_TASK(throttle_loop),         8,     75 },
-    { SCHED_TASK(update_GPS),            8,    200 },
+    { SCHED_TASK(rc_loop),               2,    130 },
+    { SCHED_TASK(throttle_loop),         4,     75 },
+    { SCHED_TASK(update_GPS),            4,    200 },
 #if OPTFLOW == ENABLED
-    { SCHED_TASK(update_optical_flow),   2,    160 },
+    { SCHED_TASK(update_optical_flow),   1,    160 },
 #endif
-    { SCHED_TASK(update_batt_compass),  40,    120 },
-    { SCHED_TASK(read_aux_switches),    40,     50 },
-    { SCHED_TASK(arm_motors_check),     40,     50 },
-    { SCHED_TASK(auto_trim),            40,     75 },
-    { SCHED_TASK(update_altitude),      40,    140 },
-    { SCHED_TASK(run_nav_updates),       8,    100 },
-    { SCHED_TASK(update_thr_average),    4,     90 },
-    { SCHED_TASK(three_hz_loop),       133,     75 },
-    { SCHED_TASK(compass_accumulate),    8,    100 },
-    { SCHED_TASK(barometer_accumulate),  8,     90 },
+    { SCHED_TASK(update_batt_compass),  20,    120 },
+    { SCHED_TASK(read_aux_switches),    20,     50 },
+    { SCHED_TASK(arm_motors_check),     20,     50 },
+    { SCHED_TASK(auto_trim),            20,     75 },
+    { SCHED_TASK(update_altitude),      20,    140 },
+    { SCHED_TASK(run_nav_updates),       4,    100 },
+    { SCHED_TASK(update_thr_average),    2,     90 },
+    { SCHED_TASK(three_hz_loop),        66,     75 },
+    { SCHED_TASK(compass_accumulate),    4,    100 },
+    { SCHED_TASK(barometer_accumulate),  4,     90 },
 #if AIRSPEED == ENABLED
-    { SCHED_TASK(read_airspeed),        40,   1200 },
-    { SCHED_TASK(airspeed_ratio_update),400,  1000 },
+    { SCHED_TASK(read_airspeed),        20,   1200 },
+    { SCHED_TASK(airspeed_ratio_update),200,  1000 },
 #endif
 #if ROTARY_ENCODER == ENABLED
-    { SCHED_TASK(read_rotary_encoder),  40,   1200 },
+    { SCHED_TASK(read_rotary_encoder),  20,   1200 },
 #endif
 #if FRAME_CONFIG == HELI_FRAME
-    { SCHED_TASK(check_dynamic_flight),  8,     75 },
+    { SCHED_TASK(check_dynamic_flight),  4,     75 },
 #endif
-    { SCHED_TASK(update_notify),         8,     90 },
-    { SCHED_TASK(one_hz_loop),         400,    100 },
-    { SCHED_TASK(ekf_check),            40,     75 },
-    { SCHED_TASK(landinggear_update),   40,     75 },
-    { SCHED_TASK(lost_vehicle_check),   40,     50 },
+    { SCHED_TASK(update_notify),         4,     90 },
+    { SCHED_TASK(one_hz_loop),         200,    100 },
+    { SCHED_TASK(ekf_check),            20,     75 },
+    { SCHED_TASK(landinggear_update),   20,     75 },
+    { SCHED_TASK(lost_vehicle_check),   20,     50 },
     { SCHED_TASK(gcs_check_input),       1,    180 },
-    { SCHED_TASK(gcs_send_heartbeat),  400,    110 },
-    { SCHED_TASK(gcs_send_deferred),     8,    550 },
-    { SCHED_TASK(gcs_data_stream_send),  8,    550 },
-    { SCHED_TASK(update_mount),          8,     75 },
-    { SCHED_TASK(ten_hz_logging_loop),  40,    350 },
-    { SCHED_TASK(fifty_hz_logging_loop), 8,    110 },
+    { SCHED_TASK(gcs_send_heartbeat),  200,    110 },
+    { SCHED_TASK(gcs_send_deferred),     4,    550 },
+    { SCHED_TASK(gcs_data_stream_send),  4,    550 },
+    { SCHED_TASK(update_mount),          4,     75 },
+    { SCHED_TASK(ten_hz_logging_loop),  20,    350 },
+    { SCHED_TASK(fifty_hz_logging_loop), 4,    110 },
     { SCHED_TASK(full_rate_logging_loop),1,    100 },
-    { SCHED_TASK(perf_update),        4000,     75 },
-    { SCHED_TASK(read_receiver_rssi),   40,     75 },
-    { SCHED_TASK(rpm_update),           40,    200 },
+    { SCHED_TASK(perf_update),        2000,     75 },
+    { SCHED_TASK(read_receiver_rssi),   20,     75 },
+    { SCHED_TASK(rpm_update),           20,    200 },
 #if FRSKY_TELEM_ENABLED == ENABLED
-    { SCHED_TASK(frsky_telemetry_send), 80,     75 },
+    { SCHED_TASK(frsky_telemetry_send), 40,     75 },
 #endif
 #if EPM_ENABLED == ENABLED
-    { SCHED_TASK(epm_update),           40,     75 },
+    { SCHED_TASK(epm_update),           20,     75 },
 #endif
 #ifdef USERHOOK_FASTLOOP
-    { SCHED_TASK(userhook_FastLoop),     4,     75 },
+    { SCHED_TASK(userhook_FastLoop),     2,     75 },
 #endif
 #ifdef USERHOOK_50HZLOOP
-    { SCHED_TASK(userhook_50Hz),         8,     75 },
+    { SCHED_TASK(userhook_50Hz),         4,     75 },
 #endif
 #ifdef USERHOOK_MEDIUMLOOP
-    { SCHED_TASK(userhook_MediumLoop),  40,     75 },
+    { SCHED_TASK(userhook_MediumLoop),  20,     75 },
 #endif
 #ifdef USERHOOK_SLOWLOOP
-    { SCHED_TASK(userhook_SlowLoop),    120,    75 },
+    { SCHED_TASK(userhook_SlowLoop),     60,    75 },
 #endif
 #ifdef USERHOOK_SUPERSLOWLOOP
-    { SCHED_TASK(userhook_SuperSlowLoop),400,   75 },
+    { SCHED_TASK(userhook_SuperSlowLoop),200,   75 },
 #endif
 };
 
@@ -246,26 +246,76 @@ void Copter::loop()
     scheduler.run(time_available);
 }
 
-
 // Main loop - 400hz
+#if COMPOUND == ENABLED
+// Modified main loop
+// Only runs each rate controller and outputs every second loop to share processing time
+// Therefore each rate controller runs at 0.5 of main loops speed:
+// Main loop - 400hz; Rotary rate controller - 200hz; and Fixed wing rate controller - 200hz
 void Copter::fast_loop()
 {
+    // IMU DCM Algorithm
+    // --------------------
+    read_AHRS();
 
+#if FRAME_CONFIG == HELI_FRAME
+    update_heli_control_dynamics();
+#endif //HELI_FRAME
+
+    // Inertial Nav
+    // --------------------
+    read_inertia();
+
+    // check if ekf has reset target heading
+    check_ekf_yaw_reset();
+
+    // run the attitude controllers
+    update_flight_mode();
+
+    // update home from EKF if necessary
+    update_home_from_EKF();
+
+    // check if we've landed or crashed
+    update_land_and_crash_detectors();
+
+    // log sensor health
+    if (should_log(MASK_LOG_ANY)) {
+        Log_Sensor_Health();
+    }
+
+    // alternating loops
+    if ((mainLoop_count & 1) == 0){
+        // original loop
+
+        // run low level rate controllers that only require IMU data
+        attitude_control.rate_controller_run();
+
+        // send outputs to the motors library
+        motors_output();
+    } else {
+        // alternate loop
+
+        // run low level rate controllers that only require IMU data
+        compound.rate_controller_run();
+
+        // send outputs to the motors library
+        compound.output();
+    }
+}
+#else
+// Default Main loop - 400hz
+void Copter::fast_loop()
+{
     // IMU DCM Algorithm
     // --------------------
     read_AHRS();
 
     // run low level rate controllers that only require IMU data
     attitude_control.rate_controller_run();
-    
+
 #if FRAME_CONFIG == HELI_FRAME
     update_heli_control_dynamics();
 #endif //HELI_FRAME
-
-#if COMPOUND == ENABLED
-    compound.rate_controller_run();
-    compound.output();
-#endif
 
     // send outputs to the motors library
     motors_output();
@@ -291,6 +341,7 @@ void Copter::fast_loop()
         Log_Sensor_Health();
     }
 }
+#endif
 
 // rc_loops - reads user input from transmitter/receiver
 // called at 100hz

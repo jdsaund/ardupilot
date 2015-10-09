@@ -200,9 +200,16 @@ void Copter::init_ardupilot()
     ahrs.set_optflow(&optflow);
 #endif
 
+#if COMPOUND == ENABLED
+    // initialise attitude and position controllers at double dt due to alternating main loop
+    attitude_control.set_dt(MAIN_LOOP_SECONDS * 2.0f);
+    compound.set_dt(MAIN_LOOP_SECONDS * 2.0f);
+    pos_control.set_dt(MAIN_LOOP_SECONDS);
+#else
     // initialise attitude and position controllers
     attitude_control.set_dt(MAIN_LOOP_SECONDS);
     pos_control.set_dt(MAIN_LOOP_SECONDS);
+#endif
 
     // init the optical flow sensor
     init_optflow();

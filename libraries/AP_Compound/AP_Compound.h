@@ -73,6 +73,9 @@ public:
         _flags.thrust_passthrough = false;
     }
 
+    // set_dt - sets time delta in seconds for all controllers (i.e. 100hz = 0.01, 400hz = 0.0025)
+    void set_dt(float delta_sec);
+
     // init
     void Init();
 

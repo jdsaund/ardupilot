@@ -65,10 +65,10 @@
  # error ArduCopter ver3.3 and higher is not supported on APM1, APM2 boards
 #endif
 
-// run at 400Hz on all systems
-# define MAIN_LOOP_RATE    400
-# define MAIN_LOOP_SECONDS 0.0025f
-# define MAIN_LOOP_MICROS  2500
+// run at 200Hz on all systems
+# define MAIN_LOOP_RATE    200
+# define MAIN_LOOP_SECONDS 0.005f
+# define MAIN_LOOP_MICROS  5000
 
 //////////////////////////////////////////////////////////////////////////////
 // FRAME_CONFIG

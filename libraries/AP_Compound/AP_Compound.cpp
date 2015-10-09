@@ -19,6 +19,16 @@
 
 extern const AP_HAL::HAL& hal;
 
+void AP_Compound::set_dt(float delta_sec)
+{
+    _dt = delta_sec;
+
+    // set attitude controller's D term filters
+    _pid_aileron.set_dt(_dt);
+    _pid_elevator.set_dt(_dt);
+    _pid_rudder.set_dt(_dt);
+}
+
 // init
 void AP_Compound::Init()
 {
